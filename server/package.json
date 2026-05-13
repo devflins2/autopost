@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@imagekit/nodejs": "^2.0.1",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -18,9 +19,7 @@
     "fluent-ffmpeg": "^2.1.2",
     "form-data": "^4.0.0",
     "mongoose": "^7.6.3",
-    "node-cron": "^3.0.2",
-    "@imagekit/nodejs": "^2.0.1"
-
+    "node-cron": "^3.0.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.15",

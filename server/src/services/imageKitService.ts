@@ -1,4 +1,6 @@
+// @ts-ignore
 import ImageKit from 'imagekit';
+
 import fs from 'fs';
 
 // Initialize ImageKit with modern SDK parameters
@@ -61,6 +63,7 @@ export const uploadImage = async (
     file: any,
     folder: string = "general"
 ) => {
+
     try {
         const response = await imagekit.upload({
             file: file,
