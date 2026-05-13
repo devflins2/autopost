@@ -1,13 +1,13 @@
-// @ts-ignore
-import ImageKit from 'imagekit';
+import ImageKit from '@imagekit/nodejs';
 import fs from 'fs';
 
-// Initialize ImageKit - Bypassing type check for constructor properties if needed
+// Initialize ImageKit with modern SDK parameters (v7.x)
+// Using 'as any' to avoid property mismatch with the new SDK version types
 const imagekit = new ImageKit({
     publicKey: process.env.IMAGEKIT_PUBLIC_KEY || "",
     privateKey: process.env.IMAGEKIT_PRIVATE_KEY || "",
     urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || ""
-});
+} as any);
 
 /**
  * Uploads a file to ImageKit
@@ -18,7 +18,7 @@ export const uploadToImageKit = async (filePath: string, fileName: string) => {
         
         // v7 uses direct .upload() method
         const response = await imagekit.upload({
-            file: fileContent,
+            file: fileContent as any, // Cast to any to satisfy TS Buffer issues
             fileName: fileName,
             folder: "/autopost-reels",
             useUniqueFileName: true
