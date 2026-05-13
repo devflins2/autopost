@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
-    "@imagekit/nodejs": "^2.0.1",
+    "@imagekit/nodejs": "^7.4.0",
+
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
