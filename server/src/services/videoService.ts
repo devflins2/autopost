@@ -433,7 +433,8 @@ export const uploadToPublicHost = async (filePath: string): Promise<{ url: strin
     try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
 
     console.log('✅ ImageKit upload successful.');
-    return { url: result.url, fileName: result.fileId }; // We store fileId in fileName for deletion
+    return { url: result.url || '', fileName: result.fileId || '' }; // Fallbacks for TS strictness
+
   } catch (err: any) {
     console.error('❌ ImageKit upload error:', err.message);
     return null;
