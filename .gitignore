@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+dist/
+build/
+.cache/
+
+# Environment Variables (Pushed to private space)
+# .env is now allowed
+
+
+
+# Local temp files
+temp/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE / OS junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large media
+*.mp4
+*.m4a
+*.jpg
+*.png
+!public/

@@ -1,0 +1,222 @@
+import axios from 'axios';
+import https from 'https';
+
+const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
+const INSTAGRAM_ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID;
+const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID;
+const API_VERSION = 'v20.0';
+
+// Force IPv4 and use keepAlive to prevent EPROTO / SSL handshake drops from Meta's IPv6 servers
+const httpsAgent = new https.Agent({ 
+  family: 4,
+  keepAlive: true,
+  keepAliveMsecs: 10000 
+});
+
+
+// Global variable to track rate limit suspension globally across the app
+export let rateLimitResetTime: Date | null = null;
+
+// Helper to check if we are currently rate-limited
+export const checkRateLimit = () => {
+  if (rateLimitResetTime && new Date() < rateLimitResetTime) {
+    const waitMins = Math.ceil((rateLimitResetTime.getTime() - Date.now()) / 60000);
+    throw new Error(`(#80002) Rate limit active. Waiting ${waitMins} more minutes before trying again.`);
+  }
+};
+
+
+/**
+ * Post an Image to Instagram
+ */
+export const postToInstagramImage = async (imageUrl: string, caption: string) => {
+  try {
+    checkRateLimit();
+    // 1. Create Media Container for Image
+    const containerRes = await axios.post(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media`, {
+      image_url: imageUrl,
+      caption: caption,
+      access_token: META_ACCESS_TOKEN
+    }, { httpsAgent });
+
+    const creationId = containerRes.data.id;
+
+    // 2. Publish the Photo
+    const publishRes = await axios.post(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media_publish`, {
+      creation_id: creationId,
+      access_token: META_ACCESS_TOKEN
+    }, { httpsAgent });
+
+    return publishRes.data;
+  } catch (error: any) {
+    console.error('Instagram Photo Error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Post a Reel to Instagram
+ */
+export const postToInstagramReel = async (videoUrl: string, caption: string) => {
+  try {
+    checkRateLimit();
+    // 1. Create Media Container for Reel
+    const containerRes = await axios.post(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media`, {
+      media_type: 'REELS',
+      video_url: videoUrl,
+      caption: caption,
+      access_token: META_ACCESS_TOKEN
+    }, { httpsAgent });
+
+    const creationId = containerRes.data.id;
+
+    // 2. Wait for processing (Polling)
+    let status = 'IN_PROGRESS';
+    let attempts = 0;
+    while (status === 'IN_PROGRESS' && attempts < 15) { // 15 attempts (30s each = 7.5 mins total)
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, 30000)); // Poll every 30 seconds to save API calls
+      const statusRes = await axios.get(`https://graph.facebook.com/${API_VERSION}/${creationId}`, {
+        params: {
+          fields: 'status_code,status',
+          access_token: META_ACCESS_TOKEN
+        },
+        httpsAgent
+      });
+
+      status = statusRes.data.status_code;
+      console.log(`📽️ Reel Status [Attempt ${attempts}]:`, status);
+      
+      if (status === 'FINISHED') break;
+      if (status === 'ERROR') {
+        throw new Error(`Meta processing failed. Check your video format or account status.`);
+      }
+
+    }
+
+    if (status !== 'FINISHED') {
+      throw new Error('Meta processing timed out (Video might be too large or URL unreachable)');
+    }
+
+    // 3. Publish
+    console.log('🚀 Publishing Reel...');
+    const publishRes = await axios.post(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media_publish`, {
+      creation_id: creationId,
+      access_token: META_ACCESS_TOKEN
+    }, { httpsAgent });
+
+    return publishRes.data;
+  } catch (error: any) {
+    const headers = error.response?.headers;
+    const rateLimitInfo = headers?.['x-business-use-case-usage'] || headers?.['x-app-usage'];
+    
+    let errorData = error.response?.data?.error?.message || error.message;
+    
+    if (rateLimitInfo) {
+      console.warn('📊 Meta Rate Limit Info:', rateLimitInfo);
+      // Try to parse estimated time to regain access if it exists
+      try {
+        const usage = JSON.parse(rateLimitInfo);
+        const accountId = Object.keys(usage)[0];
+        const estimatedWait = usage[accountId]?.[0]?.estimated_time_to_regain_access;
+        if (estimatedWait > 0) {
+          errorData += ` (Estimated wait: ${estimatedWait} minutes)`;
+          rateLimitResetTime = new Date(Date.now() + estimatedWait * 60000);
+          console.warn(`🛑 Rate limit reset time set to: ${rateLimitResetTime.toLocaleString()}`);
+        }
+      } catch (e) {}
+    }
+
+    // Also catch standard rate limit errors without the header just in case
+    if (errorData.includes('80002') && !rateLimitResetTime) {
+       // Default 1 hour ban if we can't parse the time
+       rateLimitResetTime = new Date(Date.now() + 60 * 60000);
+       console.warn(`🛑 Rate limit hit! Defaulting reset time to: ${rateLimitResetTime.toLocaleString()}`);
+    }
+
+    console.error('❌ Instagram Reel Error:', errorData);
+    throw new Error(errorData);
+  }
+};
+
+
+/**
+ * Post a Photo to Facebook Page
+ */
+export const postToFacebookPage = async (imageUrl: string, message: string) => {
+  try {
+    checkRateLimit();
+    const res = await axios.post(`https://graph.facebook.com/${API_VERSION}/${FACEBOOK_PAGE_ID}/photos`, {
+      url: imageUrl,
+      caption: message, // Some versions use caption, some use message
+      access_token: META_ACCESS_TOKEN
+    }, { httpsAgent });
+    return res.data;
+  } catch (error: any) {
+    console.error('Facebook Post Error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Post a Video to Facebook Page
+ */
+export const postVideoToFacebookPage = async (videoUrl: string, message: string) => {
+  try {
+    checkRateLimit();
+    const res = await axios.post(`https://graph.facebook.com/${API_VERSION}/${FACEBOOK_PAGE_ID}/videos`, {
+      file_url: videoUrl,
+      description: message,
+      access_token: META_ACCESS_TOKEN
+    }, { httpsAgent });
+    return res.data;
+  } catch (error: any) {
+    console.error('Facebook Video Error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Fetch insights for a specific Instagram Media ID
+ */
+export const getMediaInsights = async (mediaId: string) => {
+  try {
+    checkRateLimit();
+    // 1. Fetch Basic Fields (Likes/Comments)
+    const basicRes = await axios.get(`https://graph.facebook.com/${API_VERSION}/${mediaId}`, {
+      params: {
+        fields: 'like_count,comments_count,media_url',
+        access_token: META_ACCESS_TOKEN
+      },
+      httpsAgent
+    });
+
+
+    // 2. Fetch Insights (Reach/Views)
+    const insightRes = await axios.get(`https://graph.facebook.com/${API_VERSION}/${mediaId}/insights`, {
+      params: {
+        metric: 'reach,impressions,saved,video_views',
+        access_token: META_ACCESS_TOKEN
+      },
+      httpsAgent
+    });
+
+    const insights: any = {
+      likes: basicRes.data.like_count || 0,
+      comments: basicRes.data.comments_count || 0,
+      media_url: basicRes.data.media_url // Fetch the live CDN link from Instagram
+    };
+
+
+    insightRes.data.data.forEach((item: any) => {
+      insights[item.name] = item.values[0].value;
+    });
+
+    return insights;
+  } catch (error: any) {
+    return { reach: 0, impressions: 0, video_views: 0, saved: 0, likes: 0, comments: 0 };
+  }
+};
+
+
+
