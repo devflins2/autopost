@@ -1,9 +1,7 @@
-// @ts-ignore
-import ImageKit from 'imagekit';
-
+import ImageKit from '@imagekit/nodejs';
 import fs from 'fs';
 
-// Initialize ImageKit with modern SDK parameters
+// Initialize ImageKit with modern SDK parameters (v7.x)
 const imagekit = new ImageKit({
     publicKey: process.env.IMAGEKIT_PUBLIC_KEY || "",
     privateKey: process.env.IMAGEKIT_PRIVATE_KEY || "",
@@ -17,7 +15,8 @@ export const uploadToImageKit = async (filePath: string, fileName: string) => {
     try {
         const fileContent = fs.readFileSync(filePath);
         
-        const response = await imagekit.upload({
+        // v7 uses imagekit.files.upload
+        const response = await imagekit.files.upload({
             file: fileContent,
             fileName: fileName,
             folder: "/autopost-reels",
@@ -36,7 +35,8 @@ export const uploadToImageKit = async (filePath: string, fileName: string) => {
  */
 export const deleteFromImageKit = async (fileId: string) => {
     try {
-        await imagekit.deleteFile(fileId);
+        // v7 uses imagekit.files.delete
+        await imagekit.files.delete(fileId);
         console.log(`Successfully deleted file ${fileId} from ImageKit`);
     } catch (error: any) {
         console.error('ImageKit Deletion Error:', error.message);
@@ -48,7 +48,8 @@ export const deleteFromImageKit = async (fileId: string) => {
  */
 export const getImageKitPool = async () => {
     try {
-        const files = await imagekit.listFiles({
+        // v7 uses imagekit.files.list
+        const files = await imagekit.files.list({
             path: "/autopost-reels"
         });
         return files;
@@ -63,9 +64,8 @@ export const uploadImage = async (
     file: any,
     folder: string = "general"
 ) => {
-
     try {
-        const response = await imagekit.upload({
+        const response = await imagekit.files.upload({
             file: file,
             fileName: `upload_${Date.now()}`,
             folder: folder

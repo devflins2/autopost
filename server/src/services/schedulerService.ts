@@ -99,9 +99,10 @@ export const runAutoPilot = async () => {
       processedVideoPath = await generateReelFromImage(mediaToProcess.url, randomSong || undefined, 7);
     }
 
-    // Upload to Supabase as a TEMPORARY buffer
+    // Upload to ImageKit as a TEMPORARY buffer
     const uploadRes = await uploadToPublicHost(processedVideoPath);
-    if (!uploadRes) throw new Error('Supabase temporary upload failed');
+    if (!uploadRes) throw new Error('ImageKit temporary upload failed');
+
     
     const videoUrl = uploadRes.url;
     const tempFileName = uploadRes.fileName;
@@ -135,8 +136,9 @@ ${'═'.repeat(50)}
 ${'═'.repeat(50)}
 `);
 
-    // ─── CLEANUP: Delete from Supabase immediately after posting ─────────────
+    // ─── CLEANUP: Delete from ImageKit immediately after posting ─────────────
     await deleteFromPublicHost(tempFileName);
+
 
     try { 
       const { notifyPostSuccess } = await import('./telegramService'); 
