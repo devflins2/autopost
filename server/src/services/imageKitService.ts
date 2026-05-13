@@ -1,7 +1,7 @@
-// @ts-ignore
 import ImageKit from 'imagekit';
 import fs from 'fs';
 
+// Initialize ImageKit with modern SDK parameters
 const imagekit = new ImageKit({
     publicKey: process.env.IMAGEKIT_PUBLIC_KEY || "",
     privateKey: process.env.IMAGEKIT_PRIVATE_KEY || "",
@@ -10,9 +10,6 @@ const imagekit = new ImageKit({
 
 /**
  * Uploads a file to ImageKit
- * @param filePath Path to the local file
- * @param fileName Desired name in ImageKit
- * @returns Upload response
  */
 export const uploadToImageKit = async (filePath: string, fileName: string) => {
     try {
@@ -34,7 +31,6 @@ export const uploadToImageKit = async (filePath: string, fileName: string) => {
 
 /**
  * Deletes a file from ImageKit
- * @param fileId ImageKit fileId
  */
 export const deleteFromImageKit = async (fileId: string) => {
     try {
@@ -60,7 +56,7 @@ export const getImageKitPool = async () => {
     }
 };
 
-// Compatibility export for old code
+// Compatibility export
 export const uploadImage = async (
     file: any,
     folder: string = "general"
