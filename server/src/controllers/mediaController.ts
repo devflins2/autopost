@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { fetchImages } from '../services/mediaService';
-import { fetchAllFromImageKit } from '../services/imageKitService';
+import { getImageKitPool as listImageKitFiles } from '../services/imageKitService';
 
 
 export const getImages = async (req: Request, res: Response) => {
@@ -18,7 +18,8 @@ export const getImages = async (req: Request, res: Response) => {
 
 export const getImageKitPool = async (req: Request, res: Response) => {
   try {
-    const pool = await fetchAllFromImageKit();
+    const pool = await listImageKitFiles();
+
     res.json({ success: true, data: pool });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
