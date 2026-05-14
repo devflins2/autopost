@@ -1,8 +1,12 @@
 import axios from 'axios';
 import https from 'https';
 
-// Force IPv4 to prevent EPROTO / SSL handshake drops from Telegram's IPv6 servers
-const httpsAgent = new https.Agent({ family: 4 });
+// Force IPv4 and use keepAlive to prevent EPROTO / socket drops from Telegram's servers
+const httpsAgent = new https.Agent({ 
+  family: 4,
+  keepAlive: true,
+  keepAliveMsecs: 10000
+});
 
 const escapeHTML = (str: string): string => {
   const map: Record<string, string> = {
@@ -32,7 +36,10 @@ export const sendTelegramNotification = async (message: string): Promise<void> =
       chat_id: TELEGRAM_CHAT_ID,
       text: message,
       parse_mode: 'HTML'
-    }, { httpsAgent });
+    }, { 
+      httpsAgent,
+      timeout: 20000 // Increase timeout to 20s
+    });
   } catch (error: any) {
     // If HTML fails, try sending as plain text
     try {
@@ -40,7 +47,10 @@ export const sendTelegramNotification = async (message: string): Promise<void> =
       await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         chat_id: TELEGRAM_CHAT_ID,
         text: `[Fallback] ${plainText}`
-      }, { httpsAgent });
+      }, { 
+        httpsAgent,
+        timeout: 20000
+      });
     } catch (innerError: any) {
       console.error('❌ Telegram Notification Error:', innerError.response?.data?.description || innerError.message);
     }
