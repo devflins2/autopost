@@ -17,7 +17,7 @@ export const uploadToImageKit = async (filePath: string, fileName: string) => {
         const fileContent = fs.readFileSync(filePath);
         
         // v7 uses direct .upload() method
-        const response = await imagekit.upload({
+        const response = await (imagekit as any).upload({
             file: fileContent as any, // Cast to any to satisfy TS Buffer issues
             fileName: fileName,
             folder: "/autopost-reels",
@@ -37,7 +37,7 @@ export const uploadToImageKit = async (filePath: string, fileName: string) => {
 export const deleteFromImageKit = async (fileId: string) => {
     try {
         // v7 uses direct .deleteFile() method
-        await imagekit.deleteFile(fileId);
+        await (imagekit as any).deleteFile(fileId);
         console.log(`Successfully deleted file ${fileId} from ImageKit`);
     } catch (error: any) {
         console.error('ImageKit Deletion Error:', error.message);
@@ -50,7 +50,7 @@ export const deleteFromImageKit = async (fileId: string) => {
 export const getImageKitPool = async () => {
     try {
         // v7 uses direct .listFiles() method
-        const files = await imagekit.listFiles({
+        const files = await (imagekit as any).listFiles({
             path: "/autopost-reels"
         });
         return files;
@@ -66,7 +66,7 @@ export const uploadImage = async (
     folder: string = "general"
 ) => {
     try {
-        const response = await imagekit.upload({
+        const response = await (imagekit as any).upload({
             file: file,
             fileName: `upload_${Date.now()}`,
             folder: folder

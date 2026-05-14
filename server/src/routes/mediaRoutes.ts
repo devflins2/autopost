@@ -1,3 +1,4 @@
+import { Router } from 'express';
 import { getImages, getImageKitPool, uploadMedia, streamMedia, getLocalPool } from '../controllers/mediaController';
 import multer from 'multer';
 
