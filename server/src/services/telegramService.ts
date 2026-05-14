@@ -22,7 +22,7 @@ const escapeHTML = (str: string): string => {
 /**
  * Sends a notification to the configured Telegram bot.
  */
-export const sendTelegramNotification = async (message: string): Promise<void> => {
+export const sendTelegramNotification = async (message: string, attempts: number = 3): Promise<void> => {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -31,28 +31,44 @@ export const sendTelegramNotification = async (message: string): Promise<void> =
     return;
   }
 
-  try {
-    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: TELEGRAM_CHAT_ID,
-      text: message,
-      parse_mode: 'HTML'
-    }, { 
-      httpsAgent,
-      timeout: 20000 // Increase timeout to 20s
-    });
-  } catch (error: any) {
-    // If HTML fails, try sending as plain text
+  for (let i = 0; i < attempts; i++) {
     try {
-      const plainText = message.replace(/<[^>]*>/g, ''); // Strip tags
       await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         chat_id: TELEGRAM_CHAT_ID,
-        text: `[Fallback] ${plainText}`
+        text: message,
+        parse_mode: 'HTML'
       }, { 
         httpsAgent,
-        timeout: 20000
+        timeout: 60000 // Increase timeout to 60s
       });
-    } catch (innerError: any) {
-      console.error('❌ Telegram Notification Error:', innerError.response?.data?.description || innerError.message);
+      return; // Success, exit
+    } catch (error: any) {
+      const isLastAttempt = i === attempts - 1;
+      const errorMessage = error.response?.data?.description || error.message;
+
+      if (errorMessage.includes('400') && message.includes('<')) {
+        // If HTML parsing error, try sending as plain text immediately
+        try {
+          const plainText = message.replace(/<[^>]*>/g, '');
+          await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            chat_id: TELEGRAM_CHAT_ID,
+            text: `[Fallback] ${plainText}`
+          }, { 
+            httpsAgent,
+            timeout: 60000
+          });
+          return;
+        } catch (innerError: any) {
+          console.error('❌ Telegram Fallback Error:', innerError.message);
+        }
+      }
+
+      if (isLastAttempt) {
+        console.error('❌ Telegram Notification Error (Final Attempt):', errorMessage);
+      } else {
+        console.warn(`⚠️ Telegram Attempt ${i + 1} failed: ${errorMessage}. Retrying in 5s...`);
+        await new Promise(r => setTimeout(r, 5000));
+      }
     }
   }
 };
