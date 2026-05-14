@@ -201,8 +201,8 @@ export const initScheduler = () => {
     }
   });
 
-  // Every 1 Hour: Full Auto-Pilot with random delay
-  cron.schedule('0 * * * *', async () => {
+  // Every 8 Hours: Full Auto-Pilot with random delay (3 posts per day)
+  cron.schedule('0 */8 * * *', async () => {
     const delayMs = Math.floor(Math.random() * 15 * 60 * 1000);
     nextRunTime = new Date(Date.now() + delayMs);
     console.log(`🎲 Auto-Pilot scheduled for: ${nextRunTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
