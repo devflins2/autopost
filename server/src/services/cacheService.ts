@@ -1,62 +1,116 @@
-// No external UUID dependency, using simple timestamp + random
+import fs from 'fs';
+import path from 'path';
 
-interface CachedMedia {
-  buffer: Buffer;
-  mimeType: string;
+const CACHE_DIR = path.join(process.cwd(), 'temp', 'uploads');
+
+// Ensure directory exists
+if (!fs.existsSync(CACHE_DIR)) {
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
+
+interface CachedItem {
+  id: string;
   fileName: string;
+  mimeType: string;
   createdAt: number;
 }
 
 class CacheService {
-  private cache = new Map<string, CachedMedia>();
-  private readonly MAX_CACHE_SIZE = 100; // Limit number of items in RAM
-  private readonly TTL = 3600000; // 1 hour
+  private readonly metadataFile = path.join(CACHE_DIR, 'metadata.json');
 
   constructor() {
-    // Cleanup interval every 10 minutes
-    setInterval(() => this.cleanup(), 600000);
+    this.initMetadata();
+  }
+
+  private initMetadata() {
+    if (!fs.existsSync(this.metadataFile)) {
+      fs.writeFileSync(this.metadataFile, JSON.stringify({}));
+    }
+  }
+
+  private getMetadata(): Record<string, CachedItem> {
+    try {
+      const data = fs.readFileSync(this.metadataFile, 'utf-8');
+      return JSON.parse(data);
+    } catch (e) {
+      return {};
+    }
+  }
+
+  private saveMetadata(metadata: Record<string, CachedItem>) {
+    fs.writeFileSync(this.metadataFile, JSON.stringify(metadata, null, 2));
   }
 
   set(buffer: Buffer, mimeType: string, fileName: string): string {
     const id = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 9);
-    
-    // Simple eviction policy: if too many items, delete the oldest
-    if (this.cache.size >= this.MAX_CACHE_SIZE) {
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey) this.cache.delete(oldestKey);
-    }
+    const extension = path.extname(fileName) || (mimeType.includes('video') ? '.mp4' : '.jpg');
+    const diskName = `${id}${extension}`;
+    const filePath = path.join(CACHE_DIR, diskName);
 
-    this.cache.set(id, {
-      buffer,
-      mimeType,
-      fileName,
-      createdAt: Date.now()
-    });
+    // Save file to disk
+    fs.writeFileSync(filePath, buffer);
+
+    // Save metadata
+    const metadata = this.getMetadata();
+    metadata[id] = { id, fileName, mimeType, createdAt: Date.now() };
+    this.saveMetadata(metadata);
 
     return id;
   }
 
-  get(id: string): CachedMedia | undefined {
-    return this.cache.get(id);
+  get(id: string): { buffer: Buffer, mimeType: string, fileName: string } | undefined {
+    const metadata = this.getMetadata();
+    const item = metadata[id];
+    if (!item) return undefined;
+
+    const extension = path.extname(item.fileName) || (item.mimeType.includes('video') ? '.mp4' : '.jpg');
+    const filePath = path.join(CACHE_DIR, `${id}${extension}`);
+
+    if (fs.existsSync(filePath)) {
+      return {
+        buffer: fs.readFileSync(filePath),
+        mimeType: item.mimeType,
+        fileName: item.fileName
+      };
+    }
+    return undefined;
   }
 
-  delete(id: string): boolean {
-    return this.cache.delete(id);
-  }
-
-  getAll(): { id: string, fileName: string, createdAt: number }[] {
-    const items: { id: string, fileName: string, createdAt: number }[] = [];
-    this.cache.forEach((value, key) => {
-      items.push({ id: key, fileName: value.fileName, createdAt: value.createdAt });
+  getAll(): { id: string, fileName: string, createdAt: number, urlSuffix: string }[] {
+    const metadata = this.getMetadata();
+    return Object.values(metadata).map(item => {
+      const extension = path.extname(item.fileName) || (item.mimeType.includes('video') ? '.mp4' : '.jpg');
+      return {
+        id: item.id,
+        fileName: item.fileName,
+        createdAt: item.createdAt,
+        urlSuffix: `${item.id}${extension}`
+      };
     });
-    return items;
   }
 
-  private cleanup() {
+  delete(id: string) {
+    const metadata = this.getMetadata();
+    const item = metadata[id];
+    if (item) {
+      const extension = path.extname(item.fileName) || (item.mimeType.includes('video') ? '.mp4' : '.jpg');
+      const filePath = path.join(CACHE_DIR, `${id}${extension}`);
+      try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch (e) {}
+      delete metadata[id];
+      this.saveMetadata(metadata);
+    }
+  }
+
+  cleanup() {
     const now = Date.now();
-    this.cache.forEach((value, key) => {
-      if (now - value.createdAt > this.TTL) {
-        this.cache.delete(key);
+    const TTL = 3600000; // 1 hour
+    const metadata = this.getMetadata();
+    
+    Object.keys(metadata).forEach(id => {
+      if (now - metadata[id].createdAt > TTL) {
+        this.delete(id);
       }
     });
   }

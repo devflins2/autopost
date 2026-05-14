@@ -45,12 +45,12 @@ export const getLocalPool = async (req: Request, res: Response) => {
       resource_type: file.toLowerCase().endsWith('.mp4') ? 'video' : 'image'
     }));
 
-    // Include RAM cache items
+    // Include Disk-based Cache items (Manual Uploads)
     const ramPool = mediaCache.getAll().map(item => ({
        id: item.id,
        url: `${host}/api/media/stream/${item.id}`,
        previewUrl: `${host}/api/media/stream/${item.id}`,
-       source: 'ram',
+       source: 'cache',
        resource_type: item.fileName.toLowerCase().endsWith('.mp4') ? 'video' : 'image'
     }));
 

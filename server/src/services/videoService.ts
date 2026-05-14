@@ -25,6 +25,10 @@ export const cleanupOldTempFiles = () => {
       }
     }
     if (count > 0) console.log(`🧹 Cleaned up ${count} stale temp files.`);
+
+    // Also cleanup our new Disk Cache (Manual uploads)
+    const { mediaCache } = require('./cacheService');
+    mediaCache.cleanup();
   } catch (e) {
     console.error('Temp cleanup error:', e);
   }
