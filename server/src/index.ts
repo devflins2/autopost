@@ -18,6 +18,16 @@ import { cleanupOldTempFiles } from './services/videoService';
 const app = express();
 const PORT = process.env.HF_SPACE === 'true' ? 7860 : (process.env.PORT || 5000);
 
+// Auto-detect HF Space URL if running on Hugging Face
+if (process.env.HF_SPACE === 'true') {
+  const spaceId = process.env.SPACE_ID;
+  if (spaceId && (!process.env.PUBLIC_URL || process.env.PUBLIC_URL.includes('render.com'))) {
+    const [user, name] = spaceId.split('/');
+    process.env.PUBLIC_URL = `https://${user.toLowerCase()}-${name.toLowerCase().replace(/_/g, '-')}.hf.space`;
+    console.log(`🌍 Auto-detected HF Public URL: ${process.env.PUBLIC_URL}`);
+  }
+}
+
 // Startup: clean stale temp files from previous runs
 cleanupOldTempFiles();
 

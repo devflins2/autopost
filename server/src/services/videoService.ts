@@ -422,21 +422,20 @@ export const processVideo = async (
  */
 export const uploadToPublicHost = async (filePath: string): Promise<{ url: string, fileName: string } | null> => {
   try {
-    console.log('☁️ Uploading to ImageKit Storage...');
-    const fileName = `reel_${Date.now()}_${path.basename(filePath)}`;
+    console.log('🚀 Using HF Local Storage (Static Cache)...');
+    const fileName = path.basename(filePath);
     
-    const result = await uploadToImageKit(filePath, fileName);
+    // In production on HF, we use the PUBLIC_URL
+    const host = process.env.PUBLIC_URL || 'http://localhost:7860';
+    const url = `${host}/temp/${fileName}`;
 
-    if (!result) throw new Error('ImageKit upload returned empty result');
-
-    // Delete local file after successful upload
-    try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
-
-    console.log('✅ ImageKit upload successful.');
-    return { url: result.url || '', fileName: result.fileId || '' }; // Fallbacks for TS strictness
+    console.log(`✅ Media is now live at: ${url}`);
+    
+    // We DO NOT delete the file here because Meta needs to fetch it via the URL
+    return { url, fileName: fileName }; 
 
   } catch (err: any) {
-    console.error('❌ ImageKit upload error:', err.message);
+    console.error('❌ Local storage error:', err.message);
     return null;
   }
 };
@@ -445,6 +444,7 @@ export const uploadToPublicHost = async (filePath: string): Promise<{ url: strin
  * Deletes a file from ImageKit
  */
 export const deleteFromPublicHost = async (fileId: string) => {
-  return await deleteFromImageKit(fileId);
+  // Local files are cleaned up by cleanupOldTempFiles() every hour
+  console.log(`ℹ️ Local file ${fileId} marked for eventual cleanup.`);
 };
 

@@ -46,6 +46,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [images, setImages] = useState<MediaItem[]>([]);
   const [cloudPool, setCloudPool] = useState<MediaItem[]>([]);
+  const [localPool, setLocalPool] = useState<MediaItem[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -90,10 +91,19 @@ function App() {
 
   const fetchCloudPool = useCallback(async () => {
     try {
-      const res = await axios.get('/api/media/cloudinary-pool');
+      const res = await axios.get('/api/media/imagekit-pool'); // Switched to ImageKit as Cloudinary was replaced
       if (res.data.success) setCloudPool(res.data.data);
     } catch (error) {
       console.error('Fetch Cloud Pool Error:', error);
+    }
+  }, []);
+
+  const fetchLocalPool = useCallback(async () => {
+    try {
+      const res = await axios.get('/api/media/local-pool');
+      if (res.data.success) setLocalPool(res.data.data);
+    } catch (error) {
+      console.error('Fetch Local Pool Error:', error);
     }
   }, []);
 
@@ -161,6 +171,7 @@ function App() {
     if (isAuthenticated) {
       fetchMedia();
       fetchCloudPool();
+      fetchLocalPool();
       fetchLogs();
       fetchStats();
       fetchHistory();
@@ -270,6 +281,7 @@ function App() {
           
           <nav className="flex-1 px-4 space-y-1.5 mt-4">
             <NavItem icon={<LayoutDashboard size={18} />} label="Overview" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+            <NavItem icon={<Zap size={18} />} label="RAM Cache" active={activeTab === 'cache'} onClick={() => setActiveTab('cache')} />
             <NavItem icon={<Cloud size={18} />} label="Cloud Pool" active={activeTab === 'cloud'} onClick={() => setActiveTab('cloud')} />
             <NavItem icon={<ImageIcon size={18} />} label="Discovery" active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
             <NavItem icon={<BarChart3 size={18} />} label="Analytics" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
@@ -368,6 +380,53 @@ function App() {
             </div>
           )}
 
+          {activeTab === 'cache' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-black text-white">RAM & Local Cache</h2>
+                <label className="cursor-pointer bg-primary-600 hover:bg-primary-500 px-6 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-primary-600/20">
+                  <Send size={16} className="-rotate-45" />
+                  Upload to RAM
+                  <input type="file" className="hidden" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    setLoading(true);
+                    try {
+                      await axios.post('/api/media/upload', formData);
+                      fetchLocalPool();
+                    } catch (err) {
+                      alert('Upload failed. Check if server supports RAM cache.');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }} />
+                </label>
+              </div>
+              {localPool.length === 0 ? (
+                 <div className="p-20 text-center glass-card">
+                    <Zap size={48} className="mx-auto mb-4 text-primary-500/20" />
+                    <p className="text-gray-500">No media in local cache. Upload or wait for auto-pilot.</p>
+                 </div>
+              ) : (
+                <div className="media-grid">
+                  {localPool.map((item) => (
+                    <div key={item.id} onClick={() => setSelectedMedia(item)} className="group relative aspect-[4/5] rounded-3xl overflow-hidden border border-white/5 hover:border-primary-500/50 transition-all cursor-pointer bg-black">
+                      {item.resource_type === 'video' ? (
+                        <video src={item.url} className="w-full h-full object-cover" muted onMouseOver={e => e.currentTarget.play()} onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }} crossOrigin="anonymous" />
+                      ) : (
+                        <img src={item.url} className="w-full h-full object-cover" loading="lazy" crossOrigin="anonymous" />
+                      )}
+                      <div className={`absolute top-4 left-4 px-2 py-1 rounded text-[8px] font-bold text-white uppercase ${item.source === 'ram' ? 'bg-primary-600' : 'bg-gray-600'}`}>{item.source}</div>
+                      <div className="absolute top-4 right-4 bg-black/60 px-2 py-1 rounded text-[8px] font-bold text-white uppercase">{item.resource_type}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'cloud' && (
             <div className="space-y-8">
               <h2 className="text-3xl font-black text-white">Cloud Pool</h2>
@@ -380,12 +439,12 @@ function App() {
                 <div className="media-grid">
                   {cloudPool.map((item) => (
                     <div key={item.id} onClick={() => setSelectedMedia(item)} className="group relative aspect-[4/5] rounded-3xl overflow-hidden border border-white/5 hover:border-primary-500/50 transition-all cursor-pointer bg-black">
-                      {item.resource_type === 'video' ? (
-                        <video src={item.url} className="w-full h-full object-cover" muted onMouseOver={e => e.currentTarget.play()} onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }} />
+                      {item.resource_type === 'video' || item.url.includes('.mp4') ? (
+                        <video src={item.url} className="w-full h-full object-cover" muted onMouseOver={e => e.currentTarget.play()} onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }} crossOrigin="anonymous" />
                       ) : (
-                        <img src={item.url} className="w-full h-full object-cover" loading="lazy" />
+                        <img src={item.url} className="w-full h-full object-cover" loading="lazy" crossOrigin="anonymous" />
                       )}
-                      <div className="absolute top-4 right-4 bg-black/60 px-2 py-1 rounded text-[8px] font-bold text-white uppercase">{item.resource_type}</div>
+                      <div className="absolute top-4 right-4 bg-black/60 px-2 py-1 rounded text-[8px] font-bold text-white uppercase">{item.resource_type || (item.url.includes('.mp4') ? 'video' : 'image')}</div>
                     </div>
                   ))}
                 </div>
@@ -399,7 +458,7 @@ function App() {
               <div className="media-grid">
                 {images.map((img) => (
                   <div key={img.id} onClick={() => setSelectedMedia(img)} className="group aspect-[4/5] rounded-3xl overflow-hidden border border-white/5 hover:border-primary-500 transition-all cursor-pointer">
-                    <img src={img.previewUrl} className="w-full h-full object-cover" loading="lazy" />
+                    <img src={img.previewUrl} className="w-full h-full object-cover" loading="lazy" crossOrigin="anonymous" />
                   </div>
                 ))}
               </div>
@@ -452,9 +511,9 @@ function App() {
       {isMobile && (
         <div className="fixed bottom-0 left-0 right-0 h-[75px] bg-[#030712]/90 backdrop-blur-2xl border-t border-white/5 flex justify-around items-center px-4 z-[100]">
           <MobileNavItem icon={<LayoutDashboard size={22} />} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+          <MobileNavItem icon={<Zap size={22} />} active={activeTab === 'cache'} onClick={() => setActiveTab('cache')} />
           <MobileNavItem icon={<Cloud size={22} />} active={activeTab === 'cloud'} onClick={() => setActiveTab('cloud')} />
           <MobileNavItem icon={<ImageIcon size={22} />} active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
-          <MobileNavItem icon={<BarChart3 size={22} />} active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
           <MobileNavItem icon={<Terminal size={22} />} active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
         </div>
       )}

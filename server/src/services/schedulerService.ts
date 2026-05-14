@@ -99,9 +99,9 @@ export const runAutoPilot = async () => {
       processedVideoPath = await generateReelFromImage(mediaToProcess.url, randomSong || undefined, 7);
     }
 
-    // Upload to ImageKit as a TEMPORARY buffer
+    // Store on HF as a TEMPORARY buffer
     const uploadRes = await uploadToPublicHost(processedVideoPath);
-    if (!uploadRes) throw new Error('ImageKit temporary upload failed');
+    if (!uploadRes) throw new Error('Local temporary storage failed');
 
     
     const videoUrl = uploadRes.url;
@@ -132,7 +132,7 @@ ${'═'.repeat(50)}
 📌  Keyword  : ${randomKeyword}
 📸  Instagram: ${igRes?.id || 'N/A'}
 📘  Facebook : ${fbRes?.id || 'N/A'}
-🗑️  Storage  : Deleted from Supabase
+🗑️  Storage  : Local HF Cache
 ${'═'.repeat(50)}
 `);
 
