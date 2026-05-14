@@ -316,9 +316,9 @@ export const generateReelFromImage = async (
           '-profile:v high',
           '-level 4.1',
           '-pix_fmt yuv420p',
-          '-crf 20',            // Balanced high quality
-          '-maxrate 8M',
-          '-bufsize 16M',
+          '-crf 17',            // Maximum visual fidelity
+          '-maxrate 12M',
+          '-bufsize 24M',
           '-movflags +faststart',
           '-threads 2',
           '-r 30'
@@ -395,9 +395,9 @@ export const processVideo = async (
           '-profile:v high',
           '-level 4.1',
           '-pix_fmt yuv420p',
-          '-crf 18',            // Ultra High Quality (Visually Lossless)
-          '-maxrate 12M',
-          '-bufsize 24M',
+          '-crf 17',            // Ultra High Quality (Visually Lossless)
+          '-maxrate 15M',
+          '-bufsize 30M',
           '-movflags +faststart',
           '-threads 2',
           '-r 30'
