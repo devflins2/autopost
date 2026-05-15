@@ -13,7 +13,7 @@ import logRoutes from './routes/logRoutes';
 import statsRoutes from './routes/statsRoutes';
 import { authMiddleware } from './middleware/authMiddleware';
 import { initScheduler } from './services/schedulerService';
-import { cleanupOldTempFiles } from './services/videoService';
+import { cleanupOldTempFiles, TEMP_DIR } from './services/videoService';
 
 const app = express();
 const PORT = process.env.HF_SPACE === 'true' ? 7860 : (process.env.PORT || 5000);
@@ -59,7 +59,7 @@ const rateLimiter = (req: Request, res: Response, next: NextFunction) => {
 app.use(rateLimiter);
 app.use(cors());
 app.use(express.json());
-app.use('/temp', express.static(path.join(process.cwd(), 'temp')));
+app.use('/temp', express.static(TEMP_DIR));
 
 // Extra Security Headers
 app.use((req, res, next) => {

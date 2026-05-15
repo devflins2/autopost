@@ -7,19 +7,36 @@ import FormData from 'form-data';
 import { uploadToImageKit, deleteFromImageKit } from './imageKitService';
 
 
-const TEMP_DIR = path.join(process.cwd(), 'temp');
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+const getTempDir = () => {
+  const hfPersistentPath = '/data/temp';
+  const localPath = path.join(process.cwd(), 'temp');
+  
+  if (fs.existsSync('/data')) {
+    if (!fs.existsSync(hfPersistentPath)) {
+      fs.mkdirSync(hfPersistentPath, { recursive: true });
+    }
+    return hfPersistentPath;
+  }
+  
+  if (!fs.existsSync(localPath)) {
+    fs.mkdirSync(localPath, { recursive: true });
+  }
+  return localPath;
+};
+
+export const TEMP_DIR = getTempDir();
 
 // ─── CLEANUP: Delete temp files older than 1 hour on startup ─────────────────
 export const cleanupOldTempFiles = () => {
   try {
     const files = fs.readdirSync(TEMP_DIR);
-    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const retentionTime = 24 * 60 * 60 * 1000; // 24 Hours
+    const threshold = Date.now() - retentionTime;
     let count = 0;
     for (const file of files) {
       const filePath = path.join(TEMP_DIR, file);
       const stat = fs.statSync(filePath);
-      if (stat.mtimeMs < oneHourAgo) {
+      if (stat.mtimeMs < threshold) {
         fs.unlinkSync(filePath);
         count++;
       }
@@ -299,20 +316,21 @@ export const generateReelFromImage = async (
 
       cmd
         .videoFilters([
-          { filter: 'scale', options: '1080:1920:force_original_aspect_ratio=decrease' },
-          { filter: 'pad',   options: '1080:1920:(ow-iw)/2:(oh-ih)/2:black' },
+          // Use "increase" + "crop" to ensure the video fills the 9:16 screen (Standard for Reels)
+          { filter: 'scale', options: '1080:1920:force_original_aspect_ratio=increase' },
+          { filter: 'crop',  options: '1080:1920' },
 
           { filter: 'setsar', options: '1' },
           { filter: 'unsharp', options: '3:3:0.8:3:3:0.0' } // Subtle sharpening for nature
         ])
         .videoCodec('libx264')
         .audioCodec('aac')
-        .audioBitrate('128k')
+        .audioBitrate('192k')
         .outputOptions([
           '-map 0:v:0',
           '-map 1:a:0',
           '-shortest',          // cuts at whichever ends first (image or audio)
-          '-preset medium',
+          '-preset slow',
           '-profile:v high',
           '-level 4.1',
           '-pix_fmt yuv420p',
@@ -383,15 +401,15 @@ export const processVideo = async (
       cmd
         .videoCodec('libx264')
         .audioCodec('aac')
-        .audioBitrate('128k')
+        .audioBitrate('192k')
         .outputOptions([
-          '-vf', 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p',
+          '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,format=yuv420p',
 
           ...(audioReady
             ? ['-map 0:v:0', '-map 1:a:0', '-shortest']
             : ['-map 0:v:0', '-map 0:a:0?']
           ),
-          '-preset medium',
+          '-preset slow',
           '-profile:v high',
           '-level 4.1',
           '-pix_fmt yuv420p',

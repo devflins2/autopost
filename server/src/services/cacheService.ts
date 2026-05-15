@@ -1,12 +1,27 @@
 import fs from 'fs';
 import path from 'path';
 
-const CACHE_DIR = path.join(process.cwd(), 'temp', 'uploads');
+const getCacheDir = () => {
+  const hfPersistentPath = '/data/temp/uploads';
+  const localPath = path.join(process.cwd(), 'temp', 'uploads');
+  
+  // If running on HF and /data exists, use it for persistence
+  if (fs.existsSync('/data')) {
+    if (!fs.existsSync(hfPersistentPath)) {
+      fs.mkdirSync(hfPersistentPath, { recursive: true });
+    }
+    return hfPersistentPath;
+  }
+  
+  // Fallback to local
+  if (!fs.existsSync(localPath)) {
+    fs.mkdirSync(localPath, { recursive: true });
+  }
+  return localPath;
+};
 
-// Ensure directory exists
-if (!fs.existsSync(CACHE_DIR)) {
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
-}
+const CACHE_DIR = getCacheDir();
+
 
 interface CachedItem {
   id: string;
