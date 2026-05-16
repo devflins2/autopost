@@ -316,10 +316,8 @@ export const generateReelFromImage = async (
 
       cmd
         .videoFilters([
-          // Use "increase" + "crop" to ensure the video fills the 9:16 screen (Standard for Reels)
-          { filter: 'scale', options: '1080:1920:force_original_aspect_ratio=increase' },
-          { filter: 'crop',  options: '1080:1920' },
-
+          // Maintain original aspect ratio, ensuring dimensions are even numbers
+          { filter: 'scale', options: 'trunc(iw/2)*2:trunc(ih/2)*2' },
           { filter: 'setsar', options: '1' },
           { filter: 'unsharp', options: '3:3:0.8:3:3:0.0' } // Subtle sharpening for nature
         ])
@@ -403,7 +401,7 @@ export const processVideo = async (
         .audioCodec('aac')
         .audioBitrate('192k')
         .outputOptions([
-          '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,format=yuv420p',
+          '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,format=yuv420p',
 
           ...(audioReady
             ? ['-map 0:v:0', '-map 1:a:0', '-shortest']
