@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { fetchImages } from '../services/mediaService';
-import { getImageKitPool as listImageKitFiles } from '../services/imageKitService';
 import { mediaCache } from '../services/cacheService';
 import fs from 'fs';
 import path from 'path';
@@ -14,16 +13,6 @@ export const getImages = async (req: Request, res: Response) => {
       perPage ? parseInt(perPage.toString()) : 10
     );
     res.json({ success: true, data: images });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-export const getImageKitPool = async (req: Request, res: Response) => {
-  try {
-    const pool = await listImageKitFiles();
-
-    res.json({ success: true, data: pool });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

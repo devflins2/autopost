@@ -1,12 +1,4 @@
 import axios from 'axios';
-import https from 'https';
-
-// Force IPv4 and use keepAlive to prevent EPROTO / socket drops from Telegram's servers
-const httpsAgent = new https.Agent({ 
-  family: 4,
-  keepAlive: true,
-  keepAliveMsecs: 10000
-});
 
 const escapeHTML = (str: string): string => {
   const map: Record<string, string> = {
@@ -38,7 +30,6 @@ export const sendTelegramNotification = async (message: string, attempts: number
         text: message,
         parse_mode: 'HTML'
       }, { 
-        httpsAgent,
         timeout: 60000 // Increase timeout to 60s
       });
       return; // Success, exit
@@ -54,7 +45,6 @@ export const sendTelegramNotification = async (message: string, attempts: number
             chat_id: TELEGRAM_CHAT_ID,
             text: `[Fallback] ${plainText}`
           }, { 
-            httpsAgent,
             timeout: 60000
           });
           return;

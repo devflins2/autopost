@@ -4,7 +4,6 @@ import fs from 'fs';
 import axios from 'axios';
 import { pipeline } from 'stream/promises';
 import FormData from 'form-data';
-import { uploadToImageKit, deleteFromImageKit } from './imageKitService';
 
 
 const getTempDir = () => {
