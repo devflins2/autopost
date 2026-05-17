@@ -68,7 +68,10 @@ const downloadFileStreamed = async (
       responseType: 'stream',
       maxRedirects: 5,
       timeout: 30000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FloraBot/1.0)' }
+      headers: { 
+        'User-Agent': 'FloraBot/1.0 (https://huggingface.co/spaces/floraa18/floraa; bot)',
+        'Accept': '*/*'
+      }
     });
 
     const contentLength = parseInt(String(response.headers['content-length'] || '0'));

@@ -1,4 +1,13 @@
 import axios from 'axios';
+import https from 'https';
+import crypto from 'crypto';
+
+// Use Legacy Server Connect to bypass OpenSSL 3 EPROTO (SSL alert 0) issue with Facebook servers
+const httpsAgent = new https.Agent({
+  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+  keepAlive: true
+});
+
 
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 const INSTAGRAM_ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID;
@@ -29,7 +38,7 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
       image_url: imageUrl,
       caption: caption,
       access_token: META_ACCESS_TOKEN
-    });
+    }, { httpsAgent });
 
     const creationId = containerRes.data.id;
 
@@ -37,7 +46,7 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
     const publishRes = await axios.post(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media_publish`, {
       creation_id: creationId,
       access_token: META_ACCESS_TOKEN
-    });
+    }, { httpsAgent });
 
     return publishRes.data;
   } catch (error: any) {
@@ -58,7 +67,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
       video_url: videoUrl,
       caption: caption,
       access_token: META_ACCESS_TOKEN
-    });
+    }, { httpsAgent });
 
     const creationId = containerRes.data.id;
 
@@ -72,7 +81,8 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
         params: {
           fields: 'status_code,status',
           access_token: META_ACCESS_TOKEN
-        }
+        },
+        httpsAgent
       });
 
       status = statusRes.data.status_code;
@@ -94,7 +104,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     const publishRes = await axios.post(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media_publish`, {
       creation_id: creationId,
       access_token: META_ACCESS_TOKEN
-    });
+    }, { httpsAgent });
 
     return publishRes.data;
   } catch (error: any) {
@@ -141,7 +151,7 @@ export const postToFacebookPage = async (imageUrl: string, message: string) => {
       url: imageUrl,
       caption: message, // Some versions use caption, some use message
       access_token: META_ACCESS_TOKEN
-    });
+    }, { httpsAgent });
     return res.data;
   } catch (error: any) {
     console.error('Facebook Post Error:', error.response?.data || error.message);
@@ -159,7 +169,7 @@ export const postVideoToFacebookPage = async (videoUrl: string, message: string)
       file_url: videoUrl,
       description: message,
       access_token: META_ACCESS_TOKEN
-    });
+    }, { httpsAgent });
     return res.data;
   } catch (error: any) {
     console.error('Facebook Video Error:', error.response?.data || error.message);
@@ -178,7 +188,8 @@ export const getMediaInsights = async (mediaId: string) => {
       params: {
         fields: 'like_count,comments_count,media_url',
         access_token: META_ACCESS_TOKEN
-      }
+      },
+      httpsAgent
     });
 
 
@@ -187,7 +198,8 @@ export const getMediaInsights = async (mediaId: string) => {
       params: {
         metric: 'reach,impressions,saved,video_views',
         access_token: META_ACCESS_TOKEN
-      }
+      },
+      httpsAgent
     });
 
     const insights: any = {
