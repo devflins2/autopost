@@ -72,8 +72,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
         params: {
           fields: 'status_code,status',
           access_token: META_ACCESS_TOKEN
-        },
-        httpsAgent
+        }
       });
 
       status = statusRes.data.status_code;
