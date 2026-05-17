@@ -74,18 +74,20 @@ export const runAutoPilot = async () => {
     console.log(`🔍 Sourcing fresh media for keyword: "${randomKeyword}"...`);
     
     // Try to get a video first
-    let sourcedVideos = await fetchVideos(randomKeyword, 1);
-    if (sourcedVideos.length === 0) sourcedVideos = await fetchVideos('nature', 1);
+    let sourcedVideos = await fetchVideos(randomKeyword, 30);
+    if (sourcedVideos.length === 0) sourcedVideos = await fetchVideos('nature', 30);
 
     let mediaToProcess: { url: string, type: 'video' | 'image' } | null = null;
     
     if (sourcedVideos.length > 0) {
-      mediaToProcess = { url: sourcedVideos[0].url, type: 'video' };
+      const randomVid = sourcedVideos[Math.floor(Math.random() * sourcedVideos.length)];
+      mediaToProcess = { url: randomVid.url, type: 'video' };
     } else {
       // Fallback to image
-      const sourcedImages = await fetchImages(randomKeyword, 1);
+      const sourcedImages = await fetchImages(randomKeyword, 30);
       if (sourcedImages.length > 0) {
-        mediaToProcess = { url: sourcedImages[0].url, type: 'image' };
+        const randomImg = sourcedImages[Math.floor(Math.random() * sourcedImages.length)];
+        mediaToProcess = { url: randomImg.url, type: 'image' };
       }
     }
 

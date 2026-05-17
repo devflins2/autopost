@@ -14,11 +14,12 @@ export interface MediaItem {
 export const fetchImages = async (query: string = 'nature', perPage: number = 10): Promise<MediaItem[]> => {
   const results: MediaItem[] = [];
   const safePerPage = Math.max(3, perPage); // Pixabay requires min 3
+  const randomPage = Math.floor(Math.random() * 3) + 1; // Random page 1-3
 
   try {
     // Fetch from Pexels
     if (PEXELS_API_KEY) {
-      const pexelsRes = await axios.get(`https://api.pexels.com/v1/search?query=${query}&per_page=${perPage}`, {
+      const pexelsRes = await axios.get(`https://api.pexels.com/v1/search?query=${query}&per_page=${perPage}&page=${randomPage}`, {
         headers: { Authorization: PEXELS_API_KEY }
       });
       const pexelsItems: MediaItem[] = pexelsRes.data.photos.map((photo: any) => ({
@@ -33,7 +34,7 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
 
     // Fetch from Pixabay
     if (PIXABAY_API_KEY) {
-      const pixabayRes = await axios.get(`https://pixabay.com/api/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&image_type=photo`);
+      const pixabayRes = await axios.get(`https://pixabay.com/api/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&image_type=photo&page=${randomPage}`);
       const pixabayItems: MediaItem[] = pixabayRes.data.hits.map((hit: any) => ({
         id: hit.id.toString(),
         url: hit.largeImageURL,
@@ -53,11 +54,12 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
 export const fetchVideos = async (query: string = 'nature', perPage: number = 10): Promise<MediaItem[]> => {
   const results: MediaItem[] = [];
   const safePerPage = Math.max(3, perPage); // Pixabay requires min 3
+  const randomPage = Math.floor(Math.random() * 3) + 1; // Random page 1-3
 
   try {
     // Fetch from Pexels
     if (PEXELS_API_KEY) {
-      const pexelsRes = await axios.get(`https://api.pexels.com/videos/search?query=${query}&per_page=${perPage}`, {
+      const pexelsRes = await axios.get(`https://api.pexels.com/videos/search?query=${query}&per_page=${perPage}&page=${randomPage}`, {
         headers: { Authorization: PEXELS_API_KEY }
       });
       const pexelsItems: MediaItem[] = pexelsRes.data.videos.map((video: any) => ({
@@ -72,7 +74,7 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
 
     // Fetch from Pixabay
     if (PIXABAY_API_KEY) {
-      const pixabayRes = await axios.get(`https://pixabay.com/api/videos/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}`);
+      const pixabayRes = await axios.get(`https://pixabay.com/api/videos/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&page=${randomPage}`);
       const pixabayItems: MediaItem[] = pixabayRes.data.hits.map((hit: any) => ({
         id: hit.id.toString(),
         url: hit.videos.medium?.url || hit.videos.small?.url,
