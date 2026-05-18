@@ -49,10 +49,19 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
   throw new Error(errorData);
 };
 
+import https from 'https';
+
+const httpsAgent = new https.Agent({
+  family: 4, // Force IPv4 to prevent SSL EPROTO handshake failures on Hugging Face
+  keepAlive: true,
+  minVersion: 'TLSv1.2'
+});
+
 const metaClient = axios.create({
   baseURL: `https://graph.facebook.com/${API_VERSION}`,
   timeout: 180000, // 3 minutes timeout
-  headers: { 'Content-Type': 'application/json' }
+  headers: { 'Content-Type': 'application/json' },
+  httpsAgent: httpsAgent
 });
 
 /**
