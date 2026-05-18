@@ -14,7 +14,7 @@ const escapeHTML = (str: string): string => {
 /**
  * Sends a notification to the configured Telegram bot.
  */
-export const sendTelegramNotification = async (message: string, attempts: number = 3): Promise<void> => {
+export const sendTelegramNotification = async (message: string, attempts: number = 5): Promise<void> => {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -74,8 +74,8 @@ export const sendTelegramNotification = async (message: string, attempts: number
       if (isLastAttempt) {
         console.error('❌ Telegram Notification Error (Final Attempt):', errorMessage);
       } else {
-        console.warn(`⚠️ Telegram Attempt ${i + 1} failed: ${errorMessage}. Retrying in 5s...`);
-        await new Promise(r => setTimeout(r, 5000));
+        console.warn(`⚠️ Telegram Attempt ${i + 1} failed: ${errorMessage}. Retrying in 10s...`);
+        await new Promise(r => setTimeout(r, 10000));
       }
     }
   }

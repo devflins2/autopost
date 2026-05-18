@@ -20,7 +20,10 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
     // Fetch from Pexels
     if (PEXELS_API_KEY) {
       const pexelsRes = await axios.get(`https://api.pexels.com/v1/search?query=${query}&per_page=${perPage}&page=${randomPage}`, {
-        headers: { Authorization: PEXELS_API_KEY }
+        headers: { 
+          Authorization: PEXELS_API_KEY,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
       });
       const pexelsItems: MediaItem[] = pexelsRes.data.photos.map((photo: any) => ({
         id: photo.id.toString(),
@@ -34,7 +37,11 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
 
     // Fetch from Pixabay
     if (PIXABAY_API_KEY) {
-      const pixabayRes = await axios.get(`https://pixabay.com/api/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&image_type=photo&page=${randomPage}`);
+      const pixabayRes = await axios.get(`https://pixabay.com/api/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&image_type=photo&page=${randomPage}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
       const pixabayItems: MediaItem[] = pixabayRes.data.hits.map((hit: any) => ({
         id: hit.id.toString(),
         url: hit.largeImageURL,
@@ -60,7 +67,10 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
     // Fetch from Pexels
     if (PEXELS_API_KEY) {
       const pexelsRes = await axios.get(`https://api.pexels.com/videos/search?query=${query}&per_page=${perPage}&page=${randomPage}`, {
-        headers: { Authorization: PEXELS_API_KEY }
+        headers: { 
+          Authorization: PEXELS_API_KEY,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
       });
       const pexelsItems: MediaItem[] = pexelsRes.data.videos.map((video: any) => ({
         id: video.id.toString(),
@@ -74,7 +84,11 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
 
     // Fetch from Pixabay
     if (PIXABAY_API_KEY) {
-      const pixabayRes = await axios.get(`https://pixabay.com/api/videos/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&page=${randomPage}`);
+      const pixabayRes = await axios.get(`https://pixabay.com/api/videos/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&page=${randomPage}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
       const pixabayItems: MediaItem[] = pixabayRes.data.hits.map((hit: any) => ({
         id: hit.id.toString(),
         url: hit.videos.medium?.url || hit.videos.small?.url,

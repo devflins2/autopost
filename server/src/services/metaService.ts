@@ -51,7 +51,8 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
     const containerRes = await fetch(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_url: imageUrl, caption, access_token: META_ACCESS_TOKEN })
+      body: JSON.stringify({ image_url: imageUrl, caption, access_token: META_ACCESS_TOKEN }),
+      signal: AbortSignal.timeout(60000)
     });
     if (!containerRes.ok) await handleFetchError(containerRes, 'Instagram Photo Container Error');
     const containerData = await containerRes.json();
@@ -59,7 +60,8 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
     const publishRes = await fetch(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ creation_id: containerData.id, access_token: META_ACCESS_TOKEN })
+      body: JSON.stringify({ creation_id: containerData.id, access_token: META_ACCESS_TOKEN }),
+      signal: AbortSignal.timeout(60000)
     });
     if (!publishRes.ok) await handleFetchError(publishRes, 'Instagram Photo Publish Error');
     return await publishRes.json();
@@ -78,7 +80,8 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     const containerRes = await fetch(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ media_type: 'REELS', video_url: videoUrl, caption, access_token: META_ACCESS_TOKEN })
+      body: JSON.stringify({ media_type: 'REELS', video_url: videoUrl, caption, access_token: META_ACCESS_TOKEN }),
+      signal: AbortSignal.timeout(60000)
     });
     if (!containerRes.ok) await handleFetchError(containerRes, 'Instagram Reel Container Error');
     const containerData = await containerRes.json();
@@ -93,7 +96,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
       statusUrl.searchParams.append('fields', 'status_code,status');
       statusUrl.searchParams.append('access_token', META_ACCESS_TOKEN || '');
       
-      const statusRes = await fetch(statusUrl.toString());
+      const statusRes = await fetch(statusUrl.toString(), { signal: AbortSignal.timeout(60000) });
       if (!statusRes.ok) await handleFetchError(statusRes, 'Instagram Reel Status Error');
       const statusData = await statusRes.json();
       
@@ -112,7 +115,8 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     const publishRes = await fetch(`https://graph.facebook.com/${API_VERSION}/${INSTAGRAM_ACCOUNT_ID}/media_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ creation_id: creationId, access_token: META_ACCESS_TOKEN })
+      body: JSON.stringify({ creation_id: creationId, access_token: META_ACCESS_TOKEN }),
+      signal: AbortSignal.timeout(60000)
     });
     if (!publishRes.ok) await handleFetchError(publishRes, 'Instagram Reel Publish Error');
     return await publishRes.json();
@@ -131,7 +135,8 @@ export const postToFacebookPage = async (imageUrl: string, message: string) => {
     const res = await fetch(`https://graph.facebook.com/${API_VERSION}/${FACEBOOK_PAGE_ID}/photos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: imageUrl, caption: message, access_token: META_ACCESS_TOKEN })
+      body: JSON.stringify({ url: imageUrl, caption: message, access_token: META_ACCESS_TOKEN }),
+      signal: AbortSignal.timeout(60000)
     });
     if (!res.ok) await handleFetchError(res, 'Facebook Post Error');
     return await res.json();
@@ -150,7 +155,8 @@ export const postVideoToFacebookPage = async (videoUrl: string, message: string)
     const res = await fetch(`https://graph.facebook.com/${API_VERSION}/${FACEBOOK_PAGE_ID}/videos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file_url: videoUrl, description: message, access_token: META_ACCESS_TOKEN })
+      body: JSON.stringify({ file_url: videoUrl, description: message, access_token: META_ACCESS_TOKEN }),
+      signal: AbortSignal.timeout(60000)
     });
     if (!res.ok) await handleFetchError(res, 'Facebook Video Error');
     return await res.json();
@@ -170,7 +176,7 @@ export const getMediaInsights = async (mediaId: string) => {
     basicUrl.searchParams.append('fields', 'like_count,comments_count,media_url');
     basicUrl.searchParams.append('access_token', META_ACCESS_TOKEN || '');
     
-    const basicRes = await fetch(basicUrl.toString());
+    const basicRes = await fetch(basicUrl.toString(), { signal: AbortSignal.timeout(60000) });
     if (!basicRes.ok) throw new Error('Insights fetch failed');
     const basicData = await basicRes.json();
 
@@ -178,7 +184,7 @@ export const getMediaInsights = async (mediaId: string) => {
     insightUrl.searchParams.append('metric', 'reach,impressions,saved,video_views');
     insightUrl.searchParams.append('access_token', META_ACCESS_TOKEN || '');
     
-    const insightRes = await fetch(insightUrl.toString());
+    const insightRes = await fetch(insightUrl.toString(), { signal: AbortSignal.timeout(60000) });
     if (!insightRes.ok) throw new Error('Insights metrics failed');
     const insightData = await insightRes.json();
 
