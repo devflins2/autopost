@@ -42,7 +42,6 @@ COPY --from=builder /app/server/dist ./dist
 COPY --from=builder /app/server/package*.json ./
 COPY --from=builder /app/server/node_modules ./node_modules
 COPY --from=builder /app/client/dist /app/client/dist
-COPY --from=builder /app/server/.env ./.env
 
 # Create temp directory for video processing
 RUN mkdir -p temp && chmod 777 temp

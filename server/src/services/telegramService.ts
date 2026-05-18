@@ -1,4 +1,11 @@
 import axios from 'axios';
+import https from 'https';
+
+const httpsAgent = new https.Agent({
+  family: 4, // Force IPv4 to prevent connection timeouts on Hugging Face
+  keepAlive: true,
+  minVersion: 'TLSv1.2'
+});
 
 const escapeHTML = (str: string): string => {
   const map: Record<string, string> = {
@@ -31,7 +38,7 @@ export const sendTelegramNotification = async (message: string, attempts: number
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
         parse_mode: 'HTML'
-      }, { timeout: 60000 });
+      }, { timeout: 60000, httpsAgent });
       
       return; // Success, exit
     } catch (error: any) {
@@ -45,7 +52,7 @@ export const sendTelegramNotification = async (message: string, attempts: number
           await axios.post(url, {
             chat_id: TELEGRAM_CHAT_ID,
             text: `[Fallback] ${plainText}`
-          }, { timeout: 60000 });
+          }, { timeout: 60000, httpsAgent });
           return;
         } catch (innerError: any) {
           const innerMsg = innerError.response?.data?.description || innerError.message;
