@@ -51,7 +51,7 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
 
 const metaClient = axios.create({
   baseURL: `https://graph.facebook.com/${API_VERSION}`,
-  timeout: 60000,
+  timeout: 180000, // 3 minutes timeout
   headers: { 'Content-Type': 'application/json' }
 });
 
