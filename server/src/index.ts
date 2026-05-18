@@ -59,7 +59,14 @@ const rateLimiter = (req: Request, res: Response, next: NextFunction) => {
 app.use(rateLimiter);
 app.use(cors());
 app.use(express.json());
-app.use('/temp', express.static(TEMP_DIR));
+app.use('/temp', express.static(TEMP_DIR, {
+  acceptRanges: false,
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+}));
 
 // Extra Security Headers
 app.use((req, res, next) => {

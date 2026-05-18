@@ -27,47 +27,29 @@ export const sendTelegramNotification = async (message: string, attempts: number
 
   for (let i = 0; i < attempts; i++) {
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: TELEGRAM_CHAT_ID,
-          text: message,
-          parse_mode: 'HTML'
-        }),
-        signal: AbortSignal.timeout(60000)
-      });
+      await axios.post(url, {
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: 'HTML'
+      }, { timeout: 60000 });
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.description || `HTTP Error ${response.status}`);
-      }
       return; // Success, exit
     } catch (error: any) {
       const isLastAttempt = i === attempts - 1;
-      const errorMessage = error.message || 'Unknown error';
+      const errorMessage = error.response?.data?.description || error.message || 'Unknown error';
 
       if (errorMessage.includes('400') && message.includes('<')) {
         // If HTML parsing error, try sending as plain text immediately
         try {
           const plainText = message.replace(/<[^>]*>/g, '');
-          const fbResponse = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: TELEGRAM_CHAT_ID,
-              text: `[Fallback] ${plainText}`
-            }),
-            signal: AbortSignal.timeout(60000)
-          });
-          if (!fbResponse.ok) {
-            const fbData = await fbResponse.json();
-            throw new Error(fbData.description || `HTTP Error ${fbResponse.status}`);
-          }
+          await axios.post(url, {
+            chat_id: TELEGRAM_CHAT_ID,
+            text: `[Fallback] ${plainText}`
+          }, { timeout: 60000 });
           return;
         } catch (innerError: any) {
-          console.error('❌ Telegram Fallback Error:', innerError.message);
+          const innerMsg = innerError.response?.data?.description || innerError.message;
+          console.error('❌ Telegram Fallback Error:', innerMsg);
         }
       }
 
