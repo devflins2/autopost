@@ -331,13 +331,16 @@ export const generateReelFromImage = async (
           '-map 0:v:0',
           '-map 1:a:0',
           '-shortest',          // cuts at whichever ends first (image or audio)
-          '-preset slow',
-          '-profile:v high',
-          '-level 4.1',
+          '-preset medium',
+          '-profile:v main',
+          '-level 4.0',
           '-pix_fmt yuv420p',
-          '-crf 17',            // Maximum visual fidelity
-          '-maxrate 12M',
-          '-bufsize 24M',
+          '-colorspace bt709',
+          '-color_primaries bt709',
+          '-color_trc bt709',
+          '-crf 22',            // Ideal quality for Instagram (avoids re-encoding)
+          '-maxrate 5M',        // Strict max bitrate for IG
+          '-bufsize 10M',
           '-movflags +faststart',
           '-threads 2',
           '-r 30'
@@ -410,13 +413,16 @@ export const processVideo = async (
             ? ['-map 0:v:0', '-map 1:a:0', '-shortest']
             : ['-map 0:v:0', '-map 0:a:0?']
           ),
-          '-preset slow',
-          '-profile:v high',
-          '-level 4.1',
+          '-preset medium',
+          '-profile:v main',
+          '-level 4.0',
           '-pix_fmt yuv420p',
-          '-crf 17',            // Ultra High Quality (Visually Lossless)
-          '-maxrate 15M',
-          '-bufsize 30M',
+          '-colorspace bt709',
+          '-color_primaries bt709',
+          '-color_trc bt709',
+          '-crf 22',            // Ideal quality for Instagram (avoids aggressive re-encoding)
+          '-maxrate 5M',        // Strict max bitrate for IG
+          '-bufsize 10M',
           '-movflags +faststart',
           '-threads 2',
           '-r 30'
