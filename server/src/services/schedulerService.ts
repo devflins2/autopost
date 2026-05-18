@@ -15,9 +15,9 @@ let nextRunTime: Date | null = null;
 
 export const getNextRunTime = () => {
   if (nextRunTime && nextRunTime.getTime() > Date.now()) return nextRunTime;
-  // If null or past, predict next hour's start
+  // If null or past, predict next run time 8 hours from now
   const next = new Date();
-  next.setHours(next.getHours() + 1, 0, 0, 0);
+  next.setHours(next.getHours() + 8, 0, 0, 0);
   return next;
 };
 
@@ -48,10 +48,28 @@ const withRetry = async <T>(fn: () => Promise<T>, maxAttempts: number = 3, label
 };
 
 // ─── MAIN AUTO-PILOT ─────────────────────────────────────────────────────────
-export const runAutoPilot = async () => {
+export const runAutoPilot = async (isManual: boolean = false) => {
   if (isAutoPilotRunning) {
     console.log('⏳ Auto-Pilot is already running. Skipping this cycle...');
     return;
+  }
+
+  if (!isManual) {
+    // Check when the last auto-scraped post was successfully published
+    const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
+    const lastAutoPost = await Post.findOne({
+      title: { $regex: /^Auto-Scraped/i },
+      status: 'posted',
+      postedAt: { $gte: eightHoursAgo }
+    }).sort({ postedAt: -1 });
+
+    if (lastAutoPost && lastAutoPost.postedAt) {
+      const nextExpected = new Date(lastAutoPost.postedAt.getTime() + 8 * 60 * 60 * 1000);
+      nextRunTime = nextExpected;
+      console.log(`⏳ Auto-Pilot Check: Last autonomous post was published at ${lastAutoPost.postedAt.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}.`);
+      console.log(`⏳ Strict 8-hour gap: Next allowed autonomous post is after ${nextExpected.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}. Skipping this cycle.`);
+      return;
+    }
   }
 
   const { deleteFromPublicHost } = await import('./videoService');
@@ -126,6 +144,7 @@ export const runAutoPilot = async () => {
       fbPostId: fbRes.id 
     });
 
+    nextRunTime = new Date(Date.now() + 8 * 60 * 60 * 1000);
     await Log.create({ message: `🤖 Scraped, Processed & Posted: ${randomKeyword}`, level: 'info' });
 
     console.log(`
@@ -169,18 +188,15 @@ ${'═'.repeat(50)}
 
 // ─── SCHEDULER INIT ──────────────────────────────────────────────────────────
 export const initScheduler = () => {
-  console.log('⏰ Scheduler Initialized: Running every 1 hour...');
-
-  // Set initial post time to right now
-  nextRunTime = new Date();
+  console.log('⏰ Scheduler Initialized: Configured for strict 8-hour posting cycle (3 posts/day)...');
 
   console.log(`\n${'═'.repeat(40)}`);
   console.log(`📡 Flora is in WATCH MODE.`);
-  console.log(`🚀 Starting initial autonomous post right now...`);
+  console.log(`🚀 Performing initial autonomous check right now...`);
   console.log(`${'═'.repeat(40)}\n`);
 
-  // Run immediately on startup
-  runAutoPilot().catch(err => console.error('Initial Auto-Pilot failed:', err));
+  // Run immediately on startup (will verify if 8 hours have passed)
+  runAutoPilot(false).catch(err => console.error('Initial Auto-Pilot check failed:', err));
 
   // Every Minute: Fire manual scheduled posts
   cron.schedule('* * * * *', async () => {
@@ -203,11 +219,9 @@ export const initScheduler = () => {
     }
   });
 
-  // Every 8 Hours: Full Auto-Pilot with random delay (3 posts per day)
-  cron.schedule('0 */8 * * *', async () => {
-    const delayMs = Math.floor(Math.random() * 15 * 60 * 1000);
-    nextRunTime = new Date(Date.now() + delayMs);
-    console.log(`🎲 Auto-Pilot scheduled for: ${nextRunTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
-    setTimeout(() => runAutoPilot(), delayMs);
+  // Check every hour if 8 hours have passed since the last autonomous post
+  cron.schedule('0 * * * *', async () => {
+    console.log(`⏰ Hourly Cron Triggered: Checking if 8 hours have passed for next Auto-Pilot post...`);
+    runAutoPilot(false).catch(err => console.error('Cron Auto-Pilot check failed:', err));
   });
 };

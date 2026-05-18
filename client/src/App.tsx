@@ -192,9 +192,14 @@ function App() {
           
           // Apply that remaining time to our local countdown
           if (msLeft > 0) {
-            const mins = Math.floor(msLeft / 60000);
+            const hours = Math.floor(msLeft / 3600000);
+            const mins = Math.floor((msLeft % 3600000) / 60000);
             const secs = Math.floor((msLeft % 60000) / 1000);
-            setNextPostTime(`${mins}m ${secs}s`);
+            if (hours > 0) {
+              setNextPostTime(`${hours}h ${mins}m`);
+            } else {
+              setNextPostTime(`${mins}m ${secs}s`);
+            }
           } else {
             setNextPostTime('Processing...');
           }

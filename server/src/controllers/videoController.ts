@@ -30,7 +30,7 @@ export const createReel = async (req: Request, res: Response) => {
 
 export const triggerAutoPilotManual = async (req: Request, res: Response) => {
   try {
-    await runAutoPilot();
+    await runAutoPilot(true);
     res.json({ success: true, message: 'Auto-Pilot triggered successfully' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
