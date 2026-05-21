@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import Post from '../models/Post';
 import { postToInstagramImage, postToInstagramReel, postToFacebookPage, postVideoToFacebookPage } from './metaService';
 import { fetchImages, fetchVideos } from './mediaService';
-import { generateReelFromImage, getRandomSong, processVideo, uploadToPublicHost } from './videoService';
+import { generateReelFromImage, getRandomSong, processVideo, uploadToPublicHost, cleanupOldTempFiles } from './videoService';
 import { generateSmartCaption } from './aiService';
 import { getSeasonalKeywords } from '../utils/seasonalKeywords';
 import Log from '../models/Log';
@@ -223,5 +223,12 @@ export const initScheduler = () => {
   cron.schedule('0 * * * *', async () => {
     console.log(`⏰ Hourly Cron Triggered: Checking if 8 hours have passed for next Auto-Pilot post...`);
     runAutoPilot(false).catch(err => console.error('Cron Auto-Pilot check failed:', err));
+    
+    // Periodically clean up old temp files (older than 24 hours) to prevent disk space issues
+    try {
+      cleanupOldTempFiles();
+    } catch (err) {
+      console.error('Hourly temp cleanup failed:', err);
+    }
   });
 };
