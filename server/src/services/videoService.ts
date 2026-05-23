@@ -35,7 +35,7 @@ export const cleanupOldTempFiles = () => {
     for (const file of files) {
       const filePath = path.join(TEMP_DIR, file);
       const stat = fs.statSync(filePath);
-      if (stat.mtimeMs < threshold) {
+      if (stat.isFile() && stat.mtimeMs < threshold) {
         fs.unlinkSync(filePath);
         count++;
       }
@@ -470,10 +470,19 @@ export const uploadToPublicHost = async (filePath: string): Promise<{ url: strin
 };
 
 /**
- * Deletes a file from ImageKit
+ * Deletes a file from local temporary cache
  */
 export const deleteFromPublicHost = async (fileId: string) => {
-  // Local files are cleaned up by cleanupOldTempFiles() every hour
-  console.log(`ℹ️ Local file ${fileId} marked for eventual cleanup.`);
+  try {
+    const filePath = path.join(TEMP_DIR, fileId);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`🗑️ Local file ${fileId} deleted successfully after posting.`);
+    } else {
+      console.log(`ℹ️ Local file ${fileId} already cleaned up or does not exist.`);
+    }
+  } catch (err: any) {
+    console.error(`❌ Failed to delete local file ${fileId}:`, err.message);
+  }
 };
 
