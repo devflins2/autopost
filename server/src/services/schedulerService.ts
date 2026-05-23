@@ -128,8 +128,28 @@ export const runAutoPilot = async (isManual: boolean = false) => {
     const tempFileName = uploadRes.fileName;
 
     console.log(`🚀 Posting to Instagram & Facebook...`);
-    const igRes = await withRetry(() => postToInstagramReel(videoUrl, autoCaption), 3, 'Instagram Reel');
-    const fbRes = await withRetry(() => postVideoToFacebookPage(videoUrl, autoCaption), 3, 'Facebook Video');
+    let igRes: any = null;
+    let fbRes: any = null;
+    let igError: string | null = null;
+    let fbError: string | null = null;
+
+    try {
+      igRes = await withRetry(() => postToInstagramReel(videoUrl, autoCaption), 3, 'Instagram Reel');
+    } catch (err: any) {
+      igError = err.message;
+      console.error('❌ Instagram Reel Posting Failed:', igError);
+    }
+
+    try {
+      fbRes = await withRetry(() => postVideoToFacebookPage(videoUrl, autoCaption), 3, 'Facebook Video');
+    } catch (err: any) {
+      fbError = err.message;
+      console.error('❌ Facebook Video Posting Failed:', fbError);
+    }
+
+    if (!igRes && !fbRes) {
+      throw new Error(`Both Instagram and Facebook publishing failed. IG Error: ${igError}. FB Error: ${fbError}`);
+    }
 
     // Create record in DB
     await Post.create({ 
@@ -140,8 +160,9 @@ export const runAutoPilot = async (isManual: boolean = false) => {
       platform: 'both', 
       status: 'posted', 
       postedAt: new Date(), 
-      igMediaId: igRes.id, 
-      fbPostId: fbRes.id 
+      igMediaId: igRes?.id || undefined, 
+      fbPostId: fbRes?.id || undefined,
+      error: igError || fbError || undefined
     });
 
     nextRunTime = new Date(Date.now() + 8 * 60 * 60 * 1000);
@@ -165,8 +186,8 @@ ${'═'.repeat(50)}
       const { notifyPostSuccess } = await import('./telegramService'); 
       await notifyPostSuccess({ 
         keyword: randomKeyword, 
-        igId: igRes.id, 
-        fbId: fbRes.id, 
+        igId: igRes?.id, 
+        fbId: fbRes?.id, 
         mediaUrl: videoUrl 
       }); 
     } catch (tgErr: any) { console.error('Telegram success notification failed:', tgErr.message); }
