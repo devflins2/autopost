@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
-const INSTAGRAM_ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID;
+const INSTAGRAM_ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID || process.env.INSTAGRAM_BUSINESS_ID;
 const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID;
 const API_VERSION = 'v20.0';
 
@@ -16,17 +16,49 @@ export const checkRateLimit = () => {
   }
 };
 
+// Check environment variables fail-fast
+const checkMetaEnv = (platform: 'instagram' | 'facebook' | 'both') => {
+  if (!META_ACCESS_TOKEN) {
+    throw new Error('Meta Integration Error: META_ACCESS_TOKEN environment variable is missing.');
+  }
+  if ((platform === 'instagram' || platform === 'both') && !INSTAGRAM_ACCOUNT_ID) {
+    throw new Error('Meta Integration Error: INSTAGRAM_ACCOUNT_ID (or INSTAGRAM_BUSINESS_ID) environment variable is missing.');
+  }
+  if ((platform === 'facebook' || platform === 'both') && !FACEBOOK_PAGE_ID) {
+    throw new Error('Meta Integration Error: FACEBOOK_PAGE_ID environment variable is missing.');
+  }
+};
+
 const handleAxiosError = (error: any, defaultMessage: string) => {
   let errorData = defaultMessage;
   let rateLimitInfo = null;
 
   if (error.response) {
     rateLimitInfo = error.response.headers['x-business-use-case-usage'] || error.response.headers['x-app-usage'];
-    if (error.response.data && error.response.data.error && error.response.data.error.message) {
-      errorData = error.response.data.error.message;
+    if (error.response.data && error.response.data.error) {
+      const metaError = error.response.data.error;
+      errorData = metaError.message || defaultMessage;
+      // Add detailed Graph API metrics to the error message so they are captured by logs/scheduler
+      errorData += ` (Meta Code: ${metaError.code || 'N/A'}, Subcode: ${metaError.error_subcode || 'N/A'}, Type: ${metaError.type || 'N/A'}, Trace ID: ${metaError.fbtrace_id || 'N/A'})`;
+      console.error('❌ Detailed Meta API Error Response:', JSON.stringify(metaError, null, 2));
+    } else if (error.response.data && error.response.data.message) {
+      errorData = error.response.data.message;
     }
   } else if (error.message) {
     errorData = `${defaultMessage}: ${error.message}`;
+  }
+
+  // Safely print request details for debugging, redacting sensitive tokens
+  if (error.config) {
+    let requestData = error.config.data;
+    try {
+      if (requestData) {
+        const parsed = typeof requestData === 'string' ? JSON.parse(requestData) : requestData;
+        if (parsed.access_token) parsed.access_token = '***REDACTED***';
+        requestData = JSON.stringify(parsed);
+      }
+    } catch (_) {}
+    console.error(`📡 Failed Request: URL: ${error.config.url}, Method: ${error.config.method?.toUpperCase()}, Data: ${requestData}`);
   }
 
   if (rateLimitInfo) {
@@ -69,6 +101,7 @@ const metaClient = axios.create({
  */
 export const postToInstagramImage = async (imageUrl: string, caption: string) => {
   try {
+    checkMetaEnv('instagram');
     checkRateLimit();
     const containerRes = await metaClient.post(`/${INSTAGRAM_ACCOUNT_ID}/media`, {
       image_url: imageUrl, caption, access_token: META_ACCESS_TOKEN
@@ -89,6 +122,7 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
  */
 export const postToInstagramReel = async (videoUrl: string, caption: string) => {
   try {
+    checkMetaEnv('instagram');
     checkRateLimit();
     const containerRes = await metaClient.post(`/${INSTAGRAM_ACCOUNT_ID}/media`, {
       media_type: 'REELS', video_url: videoUrl, caption, access_token: META_ACCESS_TOKEN
@@ -130,6 +164,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
  */
 export const postToFacebookPage = async (imageUrl: string, message: string) => {
   try {
+    checkMetaEnv('facebook');
     checkRateLimit();
     const res = await metaClient.post(`/${FACEBOOK_PAGE_ID}/photos`, {
       url: imageUrl, caption: message, access_token: META_ACCESS_TOKEN
@@ -146,6 +181,7 @@ export const postToFacebookPage = async (imageUrl: string, message: string) => {
  */
 export const postVideoToFacebookPage = async (videoUrl: string, message: string) => {
   try {
+    checkMetaEnv('facebook');
     checkRateLimit();
     const res = await metaClient.post(`/${FACEBOOK_PAGE_ID}/videos`, {
       file_url: videoUrl, description: message, access_token: META_ACCESS_TOKEN
@@ -162,6 +198,7 @@ export const postVideoToFacebookPage = async (videoUrl: string, message: string)
  */
 export const getMediaInsights = async (mediaId: string) => {
   try {
+    checkMetaEnv('instagram');
     checkRateLimit();
     const basicRes = await metaClient.get(`/${mediaId}`, {
       params: { fields: 'like_count,comments_count,media_url', access_token: META_ACCESS_TOKEN }
