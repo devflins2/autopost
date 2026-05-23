@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import Post from '../models/Post';
-import { postToInstagramImage, postToInstagramReel, postToFacebookPage, postVideoToFacebookPage } from './metaService';
+import { postToInstagramImage, postToInstagramReel, postToFacebookPage, postVideoToFacebookPage, diagnoseMetaConnection } from './metaService';
 import { fetchImages, fetchVideos } from './mediaService';
 import { generateReelFromImage, getRandomSong, processVideo, uploadToPublicHost, cleanupOldTempFiles } from './videoService';
 import { generateSmartCaption } from './aiService';
@@ -189,6 +189,9 @@ ${'═'.repeat(50)}
 // ─── SCHEDULER INIT ──────────────────────────────────────────────────────────
 export const initScheduler = () => {
   console.log('⏰ Scheduler Initialized: Configured for strict 8-hour posting cycle (3 posts/day)...');
+
+  // Trigger Meta Configuration Diagnostic Audit on startup
+  diagnoseMetaConnection().catch(err => console.error('❌ Meta Diagnostic failed:', err));
 
   console.log(`\n${'═'.repeat(40)}`);
   console.log(`📡 Flora is in WATCH MODE.`);

@@ -223,3 +223,101 @@ export const getMediaInsights = async (mediaId: string) => {
     return { reach: 0, impressions: 0, video_views: 0, saved: 0, likes: 0, comments: 0 };
   }
 };
+
+/**
+ * Diagnostic Audit for Meta Integration Configuration
+ */
+export const diagnoseMetaConnection = async () => {
+  console.log('\n🔍 [Meta Audit] Starting Integration Diagnostic Audit...');
+  try {
+    if (!META_ACCESS_TOKEN) {
+      console.error('❌ [Meta Audit] META_ACCESS_TOKEN is missing from environment variables.');
+      return;
+    }
+
+    // 1. Audit /me (Check token validity)
+    try {
+      const meRes = await metaClient.get('/me', { params: { access_token: META_ACCESS_TOKEN } });
+      console.log(`✅ [Meta Audit] Token Owner Name: ${meRes.data.name}, ID: ${meRes.data.id}`);
+    } catch (err: any) {
+      console.error('❌ [Meta Audit] Token Owner Audit: Token is invalid, expired, or revoked!', err.message);
+      if (err.response?.data?.error) {
+        console.error('Meta Error Details:', JSON.stringify(err.response.data.error, null, 2));
+      }
+      return;
+    }
+
+    // 2. Audit /me/permissions (Check granted scopes)
+    try {
+      const permRes = await metaClient.get('/me/permissions', { params: { access_token: META_ACCESS_TOKEN } });
+      const permData = permRes.data.data || [];
+      const granted = permData
+        .filter((p: any) => p.status === 'granted')
+        .map((p: any) => p.permission);
+      const declined = permData
+        .filter((p: any) => p.status !== 'granted')
+        .map((p: any) => p.permission);
+      console.log('✅ [Meta Audit] Active Scopes:', granted.join(', '));
+      if (declined.length > 0) {
+        console.warn('⚠️ [Meta Audit] Declined Scopes:', declined.join(', '));
+      }
+      
+      const requiredScopes = ['instagram_basic', 'instagram_content_publish'];
+      const missing = requiredScopes.filter(s => !granted.includes(s));
+      if (missing.length > 0) {
+        console.error(`❌ [Meta Audit] Missing CRITICAL scopes: [${missing.join(', ')}]. Reels posting WILL fail.`);
+      } else {
+        console.log('✅ [Meta Audit] All critical Instagram scopes are active.');
+      }
+    } catch (err: any) {
+      console.error('❌ [Meta Audit] Scopes Audit: Failed to retrieve permissions!', err.message);
+    }
+
+    // 3. Audit Facebook Page ID
+    if (FACEBOOK_PAGE_ID) {
+      try {
+        const pageRes = await metaClient.get(`/${FACEBOOK_PAGE_ID}`, {
+          params: { fields: 'name,instagram_business_account', access_token: META_ACCESS_TOKEN }
+        });
+        console.log(`✅ [Meta Audit] Facebook Page: "${pageRes.data.name}" (ID: ${FACEBOOK_PAGE_ID})`);
+        if (pageRes.data.instagram_business_account) {
+          const linkedId = pageRes.data.instagram_business_account.id;
+          console.log(`✅ [Meta Audit] Connected Instagram Account: ID: ${linkedId}`);
+          if (INSTAGRAM_ACCOUNT_ID && INSTAGRAM_ACCOUNT_ID !== linkedId) {
+            console.error(`❌ [Meta Audit] ID MISMATCH! You configured INSTAGRAM_ACCOUNT_ID=${INSTAGRAM_ACCOUNT_ID}, but Facebook Page is connected to Instagram Account ID=${linkedId}. Please use the correct ID!`);
+          }
+        } else {
+          console.error(`❌ [Meta Audit] Linkage Broken: Facebook Page (ID: ${FACEBOOK_PAGE_ID}) is not connected to any Instagram Business Account in Facebook settings.`);
+        }
+      } catch (err: any) {
+        console.error(`❌ [Meta Audit] Facebook Page Audit: Failed to query Page ID ${FACEBOOK_PAGE_ID}!`, err.message);
+        if (err.response?.data?.error) {
+          console.error('Meta Error Details:', JSON.stringify(err.response.data.error, null, 2));
+        }
+      }
+    } else {
+      console.warn('⚠️ [Meta Audit] FACEBOOK_PAGE_ID environment variable is missing.');
+    }
+
+    // 4. Audit Instagram Business Account
+    if (INSTAGRAM_ACCOUNT_ID) {
+      try {
+        const igRes = await metaClient.get(`/${INSTAGRAM_ACCOUNT_ID}`, {
+          params: { fields: 'username,name', access_token: META_ACCESS_TOKEN }
+        });
+        console.log(`✅ [Meta Audit] Instagram Professional Profile: Name: "${igRes.data.name}", Username: @${igRes.data.username} (ID: ${INSTAGRAM_ACCOUNT_ID})`);
+      } catch (err: any) {
+        console.error(`❌ [Meta Audit] Instagram Account Audit: Failed to query Account ID ${INSTAGRAM_ACCOUNT_ID}!`, err.message);
+        if (err.response?.data?.error) {
+          console.error('Meta Error Details:', JSON.stringify(err.response.data.error, null, 2));
+        }
+      }
+    } else {
+      console.error('❌ [Meta Audit] INSTAGRAM_ACCOUNT_ID environment variable is missing.');
+    }
+
+  } catch (globalErr: any) {
+    console.error('❌ [Meta Audit] Global Audit Failure:', globalErr.message);
+  }
+  console.log('🔍 [Meta Audit] Integration Diagnostic Audit Completed.\n');
+};
