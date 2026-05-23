@@ -135,7 +135,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
       attempts++;
       await new Promise(resolve => setTimeout(resolve, 30000));
       const statusRes = await metaClient.get(`/${creationId}`, {
-        params: { fields: 'status_code,status', access_token: META_ACCESS_TOKEN }
+        params: { fields: 'status_code', access_token: META_ACCESS_TOKEN }
       });
       status = statusRes.data.status_code;
       console.log(`📽️ Reel Status [Attempt ${attempts}]:`, status);
