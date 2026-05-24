@@ -4,6 +4,7 @@ import fs from 'fs';
 import axios from 'axios';
 import { pipeline } from 'stream/promises';
 import FormData from 'form-data';
+import { getSetting } from './settingsService';
 
 
 const getTempDir = () => {
@@ -222,7 +223,7 @@ const getCategoryOrder = (keyword: string): AudioCategory[] => {
 };
 
 export const getRandomSong = async (keyword?: string): Promise<string | null> => {
-  const songLinks = process.env.SONG_LINKS;
+  const songLinks = await getSetting('songLinks') || process.env.SONG_LINKS;
   if (!songLinks) return null;
 
   const links = songLinks.split(',').map(s => s.trim()).filter(Boolean);

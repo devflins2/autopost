@@ -11,6 +11,7 @@ import path from 'path';
 import mediaRoutes from './routes/mediaRoutes';
 import videoRoutes from './routes/videoRoutes';
 import postRoutes from './routes/postRoutes';
+import settingsRoutes from './routes/settingsRoutes';
 
 import logRoutes from './routes/logRoutes';
 import statsRoutes from './routes/statsRoutes';
@@ -86,6 +87,7 @@ app.use('/api', authMiddleware);
 app.use('/api/media', mediaRoutes);
 app.use('/api/video', videoRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.use('/api/logs', logRoutes);
 app.use('/api/stats', statsRoutes);

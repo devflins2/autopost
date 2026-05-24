@@ -1,7 +1,5 @@
 import axios from 'axios';
-
-const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
-const PIXABAY_API_KEY = process.env.PIXABAY_API_KEY;
+import { getSetting } from './settingsService';
 
 export interface MediaItem {
   id: string;
@@ -16,12 +14,15 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
   const safePerPage = Math.max(3, perPage); // Pixabay requires min 3
   const randomPage = Math.floor(Math.random() * 3) + 1; // Random page 1-3
 
+  const pexelsApiKey = await getSetting('pexelsApiKey') || process.env.PEXELS_API_KEY;
+  const pixabayApiKey = await getSetting('pixabayApiKey') || process.env.PIXABAY_API_KEY;
+
   try {
     // Fetch from Pexels
-    if (PEXELS_API_KEY) {
+    if (pexelsApiKey) {
       const pexelsRes = await axios.get(`https://api.pexels.com/v1/search?query=${query}&per_page=${perPage}&page=${randomPage}`, {
         headers: { 
-          Authorization: PEXELS_API_KEY,
+          Authorization: pexelsApiKey,
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
       });
@@ -36,8 +37,8 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
     }
 
     // Fetch from Pixabay
-    if (PIXABAY_API_KEY) {
-      const pixabayRes = await axios.get(`https://pixabay.com/api/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&image_type=photo&page=${randomPage}`, {
+    if (pixabayApiKey) {
+      const pixabayRes = await axios.get(`https://pixabay.com/api/?key=${pixabayApiKey}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&image_type=photo&page=${randomPage}`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
@@ -63,12 +64,15 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
   const safePerPage = Math.max(3, perPage); // Pixabay requires min 3
   const randomPage = Math.floor(Math.random() * 3) + 1; // Random page 1-3
 
+  const pexelsApiKey = await getSetting('pexelsApiKey') || process.env.PEXELS_API_KEY;
+  const pixabayApiKey = await getSetting('pixabayApiKey') || process.env.PIXABAY_API_KEY;
+
   try {
     // Fetch from Pexels
-    if (PEXELS_API_KEY) {
+    if (pexelsApiKey) {
       const pexelsRes = await axios.get(`https://api.pexels.com/videos/search?query=${query}&per_page=${perPage}&page=${randomPage}`, {
         headers: { 
-          Authorization: PEXELS_API_KEY,
+          Authorization: pexelsApiKey,
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
       });
@@ -83,8 +87,8 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
     }
 
     // Fetch from Pixabay
-    if (PIXABAY_API_KEY) {
-      const pixabayRes = await axios.get(`https://pixabay.com/api/videos/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&page=${randomPage}`, {
+    if (pixabayApiKey) {
+      const pixabayRes = await axios.get(`https://pixabay.com/api/videos/?key=${pixabayApiKey}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&page=${randomPage}`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
@@ -104,4 +108,3 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
 
   return results;
 };
-

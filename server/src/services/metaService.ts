@@ -1,8 +1,7 @@
 import axios from 'axios';
+import https from 'https';
+import { getSetting } from './settingsService';
 
-const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
-const INSTAGRAM_ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID || process.env.INSTAGRAM_BUSINESS_ID;
-const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID;
 const API_VERSION = 'v20.0';
 
 // Global variable to track rate limit suspension globally across the app
@@ -16,15 +15,25 @@ export const checkRateLimit = () => {
   }
 };
 
+/**
+ * Resolves Meta Credentials dynamically at runtime
+ */
+export const getMetaCredentials = async () => {
+  const token = await getSetting('metaAccessToken') || process.env.META_ACCESS_TOKEN || '';
+  const igId = await getSetting('instagramAccountId') || process.env.INSTAGRAM_ACCOUNT_ID || process.env.INSTAGRAM_BUSINESS_ID || '';
+  const fbId = await getSetting('facebookPageId') || process.env.FACEBOOK_PAGE_ID || '';
+  return { token, igId, fbId };
+};
+
 // Check environment variables fail-fast
-const checkMetaEnv = (platform: 'instagram' | 'facebook' | 'both') => {
-  if (!META_ACCESS_TOKEN) {
+const checkMetaEnv = (platform: 'instagram' | 'facebook' | 'both', token: string, igId: string, fbId: string) => {
+  if (!token) {
     throw new Error('Meta Integration Error: META_ACCESS_TOKEN environment variable is missing.');
   }
-  if ((platform === 'instagram' || platform === 'both') && !INSTAGRAM_ACCOUNT_ID) {
+  if ((platform === 'instagram' || platform === 'both') && !igId) {
     throw new Error('Meta Integration Error: INSTAGRAM_ACCOUNT_ID (or INSTAGRAM_BUSINESS_ID) environment variable is missing.');
   }
-  if ((platform === 'facebook' || platform === 'both') && !FACEBOOK_PAGE_ID) {
+  if ((platform === 'facebook' || platform === 'both') && !fbId) {
     throw new Error('Meta Integration Error: FACEBOOK_PAGE_ID environment variable is missing.');
   }
 };
@@ -81,8 +90,6 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
   throw new Error(errorData);
 };
 
-import https from 'https';
-
 const httpsAgent = new https.Agent({
   family: 4, // Force IPv4 to prevent SSL EPROTO handshake failures on Hugging Face
   keepAlive: true,
@@ -101,14 +108,15 @@ const metaClient = axios.create({
  */
 export const postToInstagramImage = async (imageUrl: string, caption: string) => {
   try {
-    checkMetaEnv('instagram');
+    const { token, igId, fbId } = await getMetaCredentials();
+    checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
-    const containerRes = await metaClient.post(`/${INSTAGRAM_ACCOUNT_ID}/media`, {
-      image_url: imageUrl, caption, access_token: META_ACCESS_TOKEN
+    const containerRes = await metaClient.post(`/${igId}/media`, {
+      image_url: imageUrl, caption, access_token: token
     });
     
-    const publishRes = await metaClient.post(`/${INSTAGRAM_ACCOUNT_ID}/media_publish`, {
-      creation_id: containerRes.data.id, access_token: META_ACCESS_TOKEN
+    const publishRes = await metaClient.post(`/${igId}/media_publish`, {
+      creation_id: containerRes.data.id, access_token: token
     });
     return publishRes.data;
   } catch (error: any) {
@@ -122,10 +130,11 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
  */
 export const postToInstagramReel = async (videoUrl: string, caption: string) => {
   try {
-    checkMetaEnv('instagram');
+    const { token, igId, fbId } = await getMetaCredentials();
+    checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
-    const containerRes = await metaClient.post(`/${INSTAGRAM_ACCOUNT_ID}/media`, {
-      media_type: 'REELS', video_url: videoUrl, caption, access_token: META_ACCESS_TOKEN
+    const containerRes = await metaClient.post(`/${igId}/media`, {
+      media_type: 'REELS', video_url: videoUrl, caption, access_token: token
     });
     const creationId = containerRes.data.id;
 
@@ -135,7 +144,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
       attempts++;
       await new Promise(resolve => setTimeout(resolve, 30000));
       const statusRes = await metaClient.get(`/${creationId}`, {
-        params: { fields: 'status_code', access_token: META_ACCESS_TOKEN }
+        params: { fields: 'status_code', access_token: token }
       });
       status = statusRes.data.status_code;
       console.log(`📽️ Reel Status [Attempt ${attempts}]:`, status);
@@ -149,8 +158,8 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     }
 
     console.log('🚀 Publishing Reel...');
-    const publishRes = await metaClient.post(`/${INSTAGRAM_ACCOUNT_ID}/media_publish`, {
-      creation_id: creationId, access_token: META_ACCESS_TOKEN
+    const publishRes = await metaClient.post(`/${igId}/media_publish`, {
+      creation_id: creationId, access_token: token
     });
     return publishRes.data;
   } catch (error: any) {
@@ -160,14 +169,35 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
 };
 
 /**
+ * Resolves the Page Access Token dynamically using the User Access Token
+ */
+export const getPageAccessToken = async (userToken: string, fbId: string): Promise<string> => {
+  try {
+    const res = await metaClient.get(`/${fbId}`, {
+      params: { fields: 'access_token', access_token: userToken }
+    });
+    if (res.data && res.data.access_token) {
+      return res.data.access_token;
+    }
+    throw new Error('Page access token not returned by Meta API.');
+  } catch (error: any) {
+    console.error(`❌ Failed to retrieve Page Access Token dynamically for Page ${fbId}:`, error.message);
+    // If we fail, return the original user token as a fallback
+    return userToken;
+  }
+};
+
+/**
  * Post a Photo to Facebook Page
  */
 export const postToFacebookPage = async (imageUrl: string, message: string) => {
   try {
-    checkMetaEnv('facebook');
+    const { token, igId, fbId } = await getMetaCredentials();
+    checkMetaEnv('facebook', token, igId, fbId);
     checkRateLimit();
-    const res = await metaClient.post(`/${FACEBOOK_PAGE_ID}/photos`, {
-      url: imageUrl, caption: message, access_token: META_ACCESS_TOKEN
+    const pageToken = await getPageAccessToken(token, fbId);
+    const res = await metaClient.post(`/${fbId}/photos`, {
+      url: imageUrl, caption: message, access_token: pageToken
     });
     return res.data;
   } catch (error: any) {
@@ -181,10 +211,12 @@ export const postToFacebookPage = async (imageUrl: string, message: string) => {
  */
 export const postVideoToFacebookPage = async (videoUrl: string, message: string) => {
   try {
-    checkMetaEnv('facebook');
+    const { token, igId, fbId } = await getMetaCredentials();
+    checkMetaEnv('facebook', token, igId, fbId);
     checkRateLimit();
-    const res = await metaClient.post(`/${FACEBOOK_PAGE_ID}/videos`, {
-      file_url: videoUrl, description: message, access_token: META_ACCESS_TOKEN
+    const pageToken = await getPageAccessToken(token, fbId);
+    const res = await metaClient.post(`/${fbId}/videos`, {
+      file_url: videoUrl, description: message, access_token: pageToken
     });
     return res.data;
   } catch (error: any) {
@@ -198,14 +230,15 @@ export const postVideoToFacebookPage = async (videoUrl: string, message: string)
  */
 export const getMediaInsights = async (mediaId: string) => {
   try {
-    checkMetaEnv('instagram');
+    const { token, igId, fbId } = await getMetaCredentials();
+    checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
     const basicRes = await metaClient.get(`/${mediaId}`, {
-      params: { fields: 'like_count,comments_count,media_url', access_token: META_ACCESS_TOKEN }
+      params: { fields: 'like_count,comments_count,media_url', access_token: token }
     });
     
     const insightRes = await metaClient.get(`/${mediaId}/insights`, {
-      params: { metric: 'reach,impressions,saved,video_views', access_token: META_ACCESS_TOKEN }
+      params: { metric: 'reach,impressions,saved,video_views', access_token: token }
     });
 
     const insights: any = {
@@ -227,29 +260,40 @@ export const getMediaInsights = async (mediaId: string) => {
 /**
  * Diagnostic Audit for Meta Integration Configuration
  */
-export const diagnoseMetaConnection = async () => {
-  console.log('\n🔍 [Meta Audit] Starting Integration Diagnostic Audit...');
+export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => {
+  const log = (msg: string, isError: boolean = false) => {
+    if (logger) logger(msg);
+    if (isError) {
+      console.error(msg);
+    } else {
+      console.log(msg);
+    }
+  };
+
+  log('\n🔍 [Meta Audit] Starting Integration Diagnostic Audit...');
   try {
-    if (!META_ACCESS_TOKEN) {
-      console.error('❌ [Meta Audit] META_ACCESS_TOKEN is missing from environment variables.');
+    const { token, igId, fbId } = await getMetaCredentials();
+
+    if (!token) {
+      log('❌ [Meta Audit] META_ACCESS_TOKEN is missing from settings and environment variables.');
       return;
     }
 
     // 1. Audit /me (Check token validity)
     try {
-      const meRes = await metaClient.get('/me', { params: { access_token: META_ACCESS_TOKEN } });
-      console.log(`✅ [Meta Audit] Token Owner Name: ${meRes.data.name}, ID: ${meRes.data.id}`);
+      const meRes = await metaClient.get('/me', { params: { access_token: token } });
+      log(`✅ [Meta Audit] Token Owner Name: ${meRes.data.name}, ID: ${meRes.data.id}`);
     } catch (err: any) {
-      console.error('❌ [Meta Audit] Token Owner Audit: Token is invalid, expired, or revoked!', err.message);
+      log(`❌ [Meta Audit] Token Owner Audit: Token is invalid, expired, or revoked! ${err.message}`, true);
       if (err.response?.data?.error) {
-        console.error('Meta Error Details:', JSON.stringify(err.response.data.error, null, 2));
+        log(`Meta Error Details: ${JSON.stringify(err.response.data.error, null, 2)}`, true);
       }
       return;
     }
 
     // 2. Audit /me/permissions (Check granted scopes)
     try {
-      const permRes = await metaClient.get('/me/permissions', { params: { access_token: META_ACCESS_TOKEN } });
+      const permRes = await metaClient.get('/me/permissions', { params: { access_token: token } });
       const permData = permRes.data.data || [];
       const granted = permData
         .filter((p: any) => p.status === 'granted')
@@ -257,67 +301,67 @@ export const diagnoseMetaConnection = async () => {
       const declined = permData
         .filter((p: any) => p.status !== 'granted')
         .map((p: any) => p.permission);
-      console.log('✅ [Meta Audit] Active Scopes:', granted.join(', '));
+      log(`✅ [Meta Audit] Active Scopes: ${granted.join(', ')}`);
       if (declined.length > 0) {
-        console.warn('⚠️ [Meta Audit] Declined Scopes:', declined.join(', '));
+        log(`⚠️ [Meta Audit] Declined Scopes: ${declined.join(', ')}`);
       }
       
       const requiredScopes = ['instagram_basic', 'instagram_content_publish'];
       const missing = requiredScopes.filter(s => !granted.includes(s));
       if (missing.length > 0) {
-        console.error(`❌ [Meta Audit] Missing CRITICAL scopes: [${missing.join(', ')}]. Reels posting WILL fail.`);
+        log(`❌ [Meta Audit] Missing CRITICAL scopes: [${missing.join(', ')}]. Reels posting WILL fail.`, true);
       } else {
-        console.log('✅ [Meta Audit] All critical Instagram scopes are active.');
+        log('✅ [Meta Audit] All critical Instagram scopes are active.');
       }
     } catch (err: any) {
-      console.error('❌ [Meta Audit] Scopes Audit: Failed to retrieve permissions!', err.message);
+      log(`❌ [Meta Audit] Scopes Audit: Failed to retrieve permissions! ${err.message}`, true);
     }
 
     // 3. Audit Facebook Page ID
-    if (FACEBOOK_PAGE_ID) {
+    if (fbId) {
       try {
-        const pageRes = await metaClient.get(`/${FACEBOOK_PAGE_ID}`, {
-          params: { fields: 'name,instagram_business_account', access_token: META_ACCESS_TOKEN }
+        const pageRes = await metaClient.get(`/${fbId}`, {
+          params: { fields: 'name,instagram_business_account', access_token: token }
         });
-        console.log(`✅ [Meta Audit] Facebook Page: "${pageRes.data.name}" (ID: ${FACEBOOK_PAGE_ID})`);
+        log(`✅ [Meta Audit] Facebook Page: "${pageRes.data.name}" (ID: ${fbId})`);
         if (pageRes.data.instagram_business_account) {
           const linkedId = pageRes.data.instagram_business_account.id;
-          console.log(`✅ [Meta Audit] Connected Instagram Account: ID: ${linkedId}`);
-          if (INSTAGRAM_ACCOUNT_ID && INSTAGRAM_ACCOUNT_ID !== linkedId) {
-            console.error(`❌ [Meta Audit] ID MISMATCH! You configured INSTAGRAM_ACCOUNT_ID=${INSTAGRAM_ACCOUNT_ID}, but Facebook Page is connected to Instagram Account ID=${linkedId}. Please use the correct ID!`);
+          log(`✅ [Meta Audit] Connected Instagram Account: ID: ${linkedId}`);
+          if (igId && igId !== linkedId) {
+            log(`❌ [Meta Audit] ID MISMATCH! You configured INSTAGRAM_ACCOUNT_ID=${igId}, but Facebook Page is connected to Instagram Account ID=${linkedId}. Please use the correct ID!`, true);
           }
         } else {
-          console.error(`❌ [Meta Audit] Linkage Broken: Facebook Page (ID: ${FACEBOOK_PAGE_ID}) is not connected to any Instagram Business Account in Facebook settings.`);
+          log(`❌ [Meta Audit] Linkage Broken: Facebook Page (ID: ${fbId}) is not connected to any Instagram Business Account in Facebook settings.`, true);
         }
       } catch (err: any) {
-        console.error(`❌ [Meta Audit] Facebook Page Audit: Failed to query Page ID ${FACEBOOK_PAGE_ID}!`, err.message);
+        log(`❌ [Meta Audit] Facebook Page Audit: Failed to query Page ID ${fbId}! ${err.message}`, true);
         if (err.response?.data?.error) {
-          console.error('Meta Error Details:', JSON.stringify(err.response.data.error, null, 2));
+          log(`Meta Error Details: ${JSON.stringify(err.response.data.error, null, 2)}`, true);
         }
       }
     } else {
-      console.warn('⚠️ [Meta Audit] FACEBOOK_PAGE_ID environment variable is missing.');
+      log('⚠️ [Meta Audit] FACEBOOK_PAGE_ID environment variable is missing.');
     }
 
     // 4. Audit Instagram Business Account
-    if (INSTAGRAM_ACCOUNT_ID) {
+    if (igId) {
       try {
-        const igRes = await metaClient.get(`/${INSTAGRAM_ACCOUNT_ID}`, {
-          params: { fields: 'username,name', access_token: META_ACCESS_TOKEN }
+        const igRes = await metaClient.get(`/${igId}`, {
+          params: { fields: 'username,name', access_token: token }
         });
-        console.log(`✅ [Meta Audit] Instagram Professional Profile: Name: "${igRes.data.name}", Username: @${igRes.data.username} (ID: ${INSTAGRAM_ACCOUNT_ID})`);
+        log(`✅ [Meta Audit] Instagram Professional Profile: Name: "${igRes.data.name}", Username: @${igRes.data.username} (ID: ${igId})`);
       } catch (err: any) {
-        console.error(`❌ [Meta Audit] Instagram Account Audit: Failed to query Account ID ${INSTAGRAM_ACCOUNT_ID}!`, err.message);
+        log(`❌ [Meta Audit] Instagram Account Audit: Failed to query Account ID ${igId}! ${err.message}`, true);
         if (err.response?.data?.error) {
-          console.error('Meta Error Details:', JSON.stringify(err.response.data.error, null, 2));
+          log(`Meta Error Details: ${JSON.stringify(err.response.data.error, null, 2)}`, true);
         }
       }
     } else {
-      console.error('❌ [Meta Audit] INSTAGRAM_ACCOUNT_ID environment variable is missing.');
+      log('❌ [Meta Audit] INSTAGRAM_ACCOUNT_ID environment variable is missing.', true);
     }
 
   } catch (globalErr: any) {
-    console.error('❌ [Meta Audit] Global Audit Failure:', globalErr.message);
+    log(`❌ [Meta Audit] Global Audit Failure: ${globalErr.message}`, true);
   }
-  console.log('🔍 [Meta Audit] Integration Diagnostic Audit Completed.\n');
+  log('🔍 [Meta Audit] Integration Diagnostic Audit Completed.\n');
 };

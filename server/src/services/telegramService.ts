@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getSetting } from './settingsService';
 
 const escapeHTML = (str: string): string => {
   const map: Record<string, string> = {
@@ -14,24 +15,24 @@ const escapeHTML = (str: string): string => {
 /**
  * Sends a notification to the configured Telegram bot.
  */
-export const sendTelegramNotification = async (message: string, attempts: number = 5): Promise<void> => {
-  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+export const sendTelegramNotification = async (message: string, attempts: number = 2): Promise<void> => {
+  const telegramBotToken = await getSetting('telegramBotToken') || process.env.TELEGRAM_BOT_TOKEN;
+  const telegramChatId = await getSetting('telegramChatId') || process.env.TELEGRAM_CHAT_ID;
 
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+  if (!telegramBotToken || !telegramChatId) {
     console.warn('⚠️ Telegram config missing (Bot Token or Chat ID). Skipping notification.');
     return;
   }
 
-  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+  const url = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
 
   for (let i = 0; i < attempts; i++) {
     try {
       await axios.post(url, {
-        chat_id: TELEGRAM_CHAT_ID,
+        chat_id: telegramChatId,
         text: message,
         parse_mode: 'HTML'
-      }, { timeout: 60000 });
+      }, { timeout: 8000 });
       
       return; // Success, exit
     } catch (error: any) {
@@ -43,9 +44,9 @@ export const sendTelegramNotification = async (message: string, attempts: number
         try {
           const plainText = message.replace(/<[^>]*>/g, '');
           await axios.post(url, {
-            chat_id: TELEGRAM_CHAT_ID,
+            chat_id: telegramChatId,
             text: `[Fallback] ${plainText}`
-          }, { timeout: 60000 });
+          }, { timeout: 8000 });
           return;
         } catch (innerError: any) {
           const innerMsg = innerError.response?.data?.description || innerError.message;
@@ -56,8 +57,8 @@ export const sendTelegramNotification = async (message: string, attempts: number
       if (isLastAttempt) {
         console.error('❌ Telegram Notification Error (Final Attempt):', errorMessage);
       } else {
-        console.warn(`⚠️ Telegram Attempt ${i + 1} failed: ${errorMessage}. Retrying in 10s...`);
-        await new Promise(r => setTimeout(r, 10000));
+        console.warn(`⚠️ Telegram Attempt ${i + 1} failed: ${errorMessage}. Retrying in 3s...`);
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
   }

@@ -67,6 +67,27 @@ function App() {
     recentPosts: []
   });
 
+  // Settings states
+  const [settings, setSettings] = useState({
+    metaAccessToken: '',
+    instagramAccountId: '',
+    facebookPageId: '',
+    telegramBotToken: '',
+    telegramChatId: '',
+    hfToken: '',
+    pexelsApiKey: '',
+    pixabayApiKey: '',
+    songLinks: ''
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsSuccess, setSettingsSuccess] = useState(false);
+
+  // Diagnostic states
+  const [diagnosticLogs, setDiagnosticLogs] = useState<string[]>([]);
+  const [testingMeta, setTestingMeta] = useState(false);
+
   const discoveryKeywords = useMemo(() => ['forest', 'mountains', 'ocean', 'wildlife', 'landscape', 'waterfall', 'desert'], []);
 
   // Update Axios Header whenever password changes or on load
@@ -137,6 +158,60 @@ function App() {
     }
   }, []);
 
+  const fetchSettings = useCallback(async () => {
+    setSettingsLoading(true);
+    try {
+      const res = await axios.get('/api/settings');
+      if (res.data.success) {
+        setSettings(res.data.data);
+      }
+    } catch (error) {
+      console.error('Fetch Settings Error:', error);
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, []);
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsSaving(true);
+    setSettingsError('');
+    setSettingsSuccess(false);
+    try {
+      const res = await axios.post('/api/settings', settings);
+      if (res.data.success) {
+        setSettingsSuccess(true);
+        setTimeout(() => setSettingsSuccess(false), 3000);
+        // Refresh to get new masked keys
+        fetchSettings();
+      }
+    } catch (error: any) {
+      setSettingsError(error.response?.data?.error || 'Failed to save configurations');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const runMetaDiagnostics = async () => {
+    setTestingMeta(true);
+    setDiagnosticLogs([
+      '🚀 Initiating Meta Integration Diagnostic Audit...',
+      '📡 Querying configuration parameters from MongoDB...'
+    ]);
+    try {
+      const res = await axios.post('/api/settings/test-meta');
+      if (res.data.success) {
+        setDiagnosticLogs(res.data.logs);
+      } else {
+        setDiagnosticLogs(prev => [...prev, '❌ Diagnostics failed: ' + (res.data.error || 'Unknown server error')]);
+      }
+    } catch (error: any) {
+      setDiagnosticLogs(prev => [...prev, '❌ Diagnostics network failure: ' + (error.response?.data?.error || error.message || 'Network Timeout')]);
+    } finally {
+      setTestingMeta(false);
+    }
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsVerifying(true);
@@ -175,6 +250,7 @@ function App() {
       fetchLogs();
       fetchStats();
       fetchHistory();
+      fetchSettings();
 
       const handleResize = () => setIsMobile(window.innerWidth < 1024);
       window.addEventListener('resize', handleResize);
@@ -213,7 +289,7 @@ function App() {
         window.removeEventListener('resize', handleResize);
       };
     }
-  }, [isAuthenticated, fetchMedia, fetchCloudPool, fetchLogs, fetchStats]);
+  }, [isAuthenticated, fetchMedia, fetchCloudPool, fetchLogs, fetchStats, fetchSettings]);
 
   const handleQuickPublish = async () => {
     if (!selectedMedia) return;
@@ -291,6 +367,7 @@ function App() {
             <NavItem icon={<ImageIcon size={18} />} label="Discovery" active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
             <NavItem icon={<BarChart3 size={18} />} label="Analytics" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
             <NavItem icon={<Terminal size={18} />} label="Engine Logs" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
+            <NavItem icon={<Settings size={18} />} label="Integrations" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
           </nav>
 
           <div className="p-6 m-4 rounded-3xl bg-white/[0.02] border border-white/5 backdrop-blur-md">
@@ -503,11 +580,313 @@ function App() {
           {activeTab === 'logs' && (
             <div className="p-6 bg-black/40 rounded-[2rem] border border-white/5 font-mono text-xs overflow-y-auto h-[60vh] space-y-2 custom-scrollbar">
                {logs.map(log => (
-                 <div key={log._id} className="flex gap-4 p-2 hover:bg-white/5 rounded-lg">
-                    <span className="text-gray-600 font-bold">[{new Date(log.createdAt).toLocaleTimeString()}]</span>
-                    <span className={log.level === 'error' ? 'text-red-400' : 'text-primary-400'}>{log.message}</span>
-                 </div>
+                  <div key={log._id} className="flex gap-4 p-2 hover:bg-white/5 rounded-lg">
+                     <span className="text-gray-600 font-bold">[{new Date(log.createdAt).toLocaleTimeString()}]</span>
+                     <span className={log.level === 'error' ? 'text-red-400' : 'text-primary-400'}>{log.message}</span>
+                  </div>
                ))}
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-10">
+              <div>
+                <h2 className="text-3xl font-black text-white flex items-center gap-3">
+                  <Settings className="text-primary-500 animate-spin-slow" size={32} />
+                  Engine Integrations & API Keys
+                </h2>
+                <p className="text-gray-500 mt-2 text-sm max-w-2xl">
+                  Dynamically configure your social platforms, media source keys, and notification channels. Database settings securely override environment variables.
+                </p>
+              </div>
+
+              {settingsLoading ? (
+                <div className="flex flex-col items-center justify-center p-20 glass-card">
+                  <Loader2 className="animate-spin text-primary-500 mb-4" size={48} />
+                  <p className="text-gray-500 text-sm font-bold uppercase tracking-wider">Syncing Configurations...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+                  {/* Settings Form */}
+                  <div className="space-y-8">
+                    <form onSubmit={handleSaveSettings} className="space-y-6">
+                      
+                      {/* Meta API Settings */}
+                      <div className="glass-card p-8 rounded-[2rem] border border-white/5 space-y-6">
+                        <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                          <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400">
+                            <Users size={20} />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg text-white">Meta API Connection</h3>
+                            <p className="text-xs text-gray-500">Instagram Professional & Facebook Page integration</p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Meta Access Token</label>
+                            <input 
+                              type="password" 
+                              placeholder="EAAC..."
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                              value={settings.metaAccessToken}
+                              onChange={(e) => setSettings({ ...settings, metaAccessToken: e.target.value })}
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Instagram Account ID</label>
+                              <input 
+                                type="text" 
+                                placeholder="e.g. 178414247..."
+                                className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                                value={settings.instagramAccountId}
+                                onChange={(e) => setSettings({ ...settings, instagramAccountId: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Facebook Page ID</label>
+                              <input 
+                                type="text" 
+                                placeholder="e.g. 110220913..."
+                                className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                                value={settings.facebookPageId}
+                                onChange={(e) => setSettings({ ...settings, facebookPageId: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Telegram Notifications */}
+                      <div className="glass-card p-8 rounded-[2rem] border border-white/5 space-y-6">
+                        <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                          <div className="p-2 bg-primary-500/10 rounded-xl text-primary-400">
+                            <Bell size={20} />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg text-white">Telegram Alerts</h3>
+                            <p className="text-xs text-gray-500">Live notifications for Autopilot runs</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Bot Token</label>
+                            <input 
+                              type="password" 
+                              placeholder="e.g. 123456:ABC-DEF..."
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                              value={settings.telegramBotToken}
+                              onChange={(e) => setSettings({ ...settings, telegramBotToken: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Chat ID</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. -1001234567..."
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                              value={settings.telegramChatId}
+                              onChange={(e) => setSettings({ ...settings, telegramChatId: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Media Discovery keys */}
+                      <div className="glass-card p-8 rounded-[2rem] border border-white/5 space-y-6">
+                        <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                          <div className="p-2 bg-purple-500/10 rounded-xl text-purple-400">
+                            <ImageIcon size={20} />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg text-white">Media API Keys</h3>
+                            <p className="text-xs text-gray-500">External stock video/photo endpoints</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Pexels API Key</label>
+                            <input 
+                              type="password" 
+                              placeholder="Enter Pexels Key"
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                              value={settings.pexelsApiKey}
+                              onChange={(e) => setSettings({ ...settings, pexelsApiKey: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Pixabay API Key</label>
+                            <input 
+                              type="password" 
+                              placeholder="Enter Pixabay Key"
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                              value={settings.pixabayApiKey}
+                              onChange={(e) => setSettings({ ...settings, pixabayApiKey: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* System & Audio Playlist */}
+                      <div className="glass-card p-8 rounded-[2rem] border border-white/5 space-y-6">
+                        <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                          <div className="p-2 bg-green-500/10 rounded-xl text-green-400">
+                            <Music size={20} />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg text-white">Autopilot & Media Parameters</h3>
+                            <p className="text-xs text-gray-500">Caption generation and background soundtrack pools</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Hugging Face Token (AI Caption)</label>
+                            <input 
+                              type="password" 
+                              placeholder="hf_..."
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                              value={settings.hfToken}
+                              onChange={(e) => setSettings({ ...settings, hfToken: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Song Link Pool (Comma Separated URLs)</label>
+                            <textarea 
+                              placeholder="https://example.com/song1.mp3, https://example.com/song2.mp3..."
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors h-28 resize-y"
+                              value={settings.songLinks}
+                              onChange={(e) => setSettings({ ...settings, songLinks: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Submit Button */}
+                      <div className="flex items-center gap-4">
+                        <button 
+                          type="submit" 
+                          disabled={settingsSaving}
+                          className="flex-grow py-5 bg-primary-600 hover:bg-primary-500 rounded-2xl font-black text-white shadow-2xl shadow-primary-600/30 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-3 disabled:opacity-50"
+                        >
+                          {settingsSaving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                          {settingsSaving ? 'Saving Configurations...' : 'Save Configurations'}
+                        </button>
+                        {settingsSuccess && (
+                          <span className="text-green-500 text-xs font-black uppercase tracking-wider animate-pulse">Saved Successfully!</span>
+                        )}
+                        {settingsError && (
+                          <span className="text-red-500 text-xs font-black uppercase tracking-wider">{settingsError}</span>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Right Side: Diagnostics & Instructions */}
+                  <div className="space-y-8">
+                    
+                    {/* Meta Integration Audit Diagnostic */}
+                    <div className="glass-card p-8 rounded-[2rem] border border-white/5 space-y-6">
+                      <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400">
+                            <Terminal size={20} />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg text-white">Integration Diagnostics</h3>
+                            <p className="text-xs text-gray-500">Run live Graph API & scope permission test</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={runMetaDiagnostics} 
+                          disabled={testingMeta}
+                          className="px-4 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-50"
+                        >
+                          {testingMeta ? <Loader2 className="animate-spin" size={12} /> : <RefreshCw size={12} />}
+                          {testingMeta ? 'Auditing...' : 'Run Audit'}
+                        </button>
+                      </div>
+
+                      {/* Diagnostic Console Box */}
+                      <div className="p-5 bg-black/40 border border-white/5 rounded-2xl font-mono text-[11px] leading-relaxed overflow-y-auto h-72 space-y-1.5 custom-scrollbar text-gray-300">
+                        {diagnosticLogs.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full text-gray-600">
+                            <Terminal size={32} className="mb-2 text-gray-700 animate-pulse" />
+                            <p className="text-center font-bold">Console is ready.</p>
+                            <p className="text-[10px] text-gray-700 mt-1">Click "Run Audit" to test token & linkages.</p>
+                          </div>
+                        ) : (
+                          diagnosticLogs.map((log, index) => {
+                            let colorClass = 'text-gray-400';
+                            if (log.includes('✅')) colorClass = 'text-green-400 font-bold';
+                            else if (log.includes('❌')) colorClass = 'text-red-400 font-bold';
+                            else if (log.includes('⚠️')) colorClass = 'text-yellow-400 font-bold';
+                            else if (log.includes('🚀') || log.includes('🔍')) colorClass = 'text-indigo-400 font-bold';
+                            return (
+                              <div key={index} className={`whitespace-pre-wrap ${colorClass}`}>
+                                {log}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Instruction Guide / Help Guide Card */}
+                    <div className="glass-card p-8 rounded-[2rem] border border-white/5 space-y-6 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-2xl"></div>
+                      
+                      <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                        <div className="p-2 bg-yellow-500/10 rounded-xl text-yellow-400">
+                          <Zap size={20} />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg text-white">Setup Guidelines</h3>
+                          <p className="text-xs text-gray-500">Meta Access Token & Scope configuration</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 text-xs text-gray-400 leading-relaxed">
+                        <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                          <p className="font-bold text-white mb-2 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
+                            1. Generate a Long-Lived Token (60 Days)
+                          </p>
+                          <p className="pl-3 mb-2">
+                            Do not use a default Graph API Explorer token directly (they expire in 2 hours!). Exchange it for a long-lived page token:
+                          </p>
+                          <ol className="list-decimal pl-7 space-y-1">
+                            <li>Visit <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noreferrer" className="text-primary-400 underline">Meta Graph Explorer</a>.</li>
+                            <li>Select your App, and choose Scopes: <code>pages_show_list, instagram_basic, instagram_content_publish, pages_read_engagement, pages_manage_posts</code>.</li>
+                            <li>Generate the token, then use Meta's Access Token Tool to exchange it for a **60-day Long-Lived Access Token**.</li>
+                          </ol>
+                        </div>
+
+                        <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                          <p className="font-bold text-white mb-2 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
+                            2. Resolve "No permission to publish video"
+                          </p>
+                          <p className="pl-3">
+                            If you get <code>(#100) No permission to publish the video</code>, this means either:
+                          </p>
+                          <ul className="list-disc pl-7 space-y-1 mt-1">
+                            <li>Your Meta App is in <b>Development Mode</b> and the page/instagram account is not owned by the Developer/Admin of the app.</li>
+                            <li>Your access token lacks the <b>pages_manage_posts</b> or <b>publish_video</b> permission.</li>
+                            <li>The connected Facebook Page does not have sufficient business permissions. Ensure you linked your page to your professional Instagram profile.</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -520,6 +899,7 @@ function App() {
           <MobileNavItem icon={<Cloud size={22} />} active={activeTab === 'cloud'} onClick={() => setActiveTab('cloud')} />
           <MobileNavItem icon={<ImageIcon size={22} />} active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
           <MobileNavItem icon={<Terminal size={22} />} active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
+          <MobileNavItem icon={<Settings size={22} />} active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
         </div>
       )}
 

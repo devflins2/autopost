@@ -182,26 +182,24 @@ ${'═'.repeat(50)}
     await deleteFromPublicHost(tempFileName);
 
 
-    try { 
-      const { notifyPostSuccess } = await import('./telegramService'); 
-      await notifyPostSuccess({ 
+    // Dispatch Telegram success notification asynchronously in the background
+    import('./telegramService').then(({ notifyPostSuccess }) => {
+      notifyPostSuccess({ 
         keyword: randomKeyword, 
         igId: igRes?.id, 
         fbId: fbRes?.id, 
         mediaUrl: videoUrl 
-      }); 
-    } catch (tgErr: any) { console.error('Telegram success notification failed:', tgErr.message); }
+      }).catch(tgErr => console.error('Telegram success notification failed:', tgErr.message));
+    }).catch(importErr => console.error('Failed to import telegramService for success notification:', importErr.message));
 
   } catch (error: any) {
     console.error('🤖 Auto-Pilot Error:', error);
     await Log.create({ message: `🤖 Auto-Pilot Failed: ${error.message}`, level: 'error' });
 
-    try { 
-      const { notifyPostFailure } = await import('./telegramService'); 
-      await notifyPostFailure(error.message); 
-    } catch (tgErr: any) { 
-      console.error('Telegram failure notification failed:', tgErr.message); 
-    }
+    // Dispatch Telegram failure notification asynchronously in the background
+    import('./telegramService').then(({ notifyPostFailure }) => {
+      notifyPostFailure(error.message).catch(tgErr => console.error('Telegram failure notification failed:', tgErr.message));
+    }).catch(importErr => console.error('Failed to import telegramService for failure notification:', importErr.message));
   } finally {
     isAutoPilotRunning = false;
   }
