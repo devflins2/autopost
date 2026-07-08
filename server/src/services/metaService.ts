@@ -1,5 +1,6 @@
 import axios from 'axios';
 import https from 'https';
+import crypto from 'crypto';
 import { getSetting } from './settingsService';
 
 const API_VERSION = 'v20.0';
@@ -93,7 +94,8 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
 const httpsAgent = new https.Agent({
   family: 4, // Force IPv4 to prevent SSL EPROTO handshake failures on Hugging Face
   keepAlive: true,
-  minVersion: 'TLSv1.2'
+  minVersion: 'TLSv1.2',
+  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT
 });
 
 const metaClient = axios.create({
