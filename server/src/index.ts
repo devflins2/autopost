@@ -1,3 +1,11 @@
+// Uncaught Exception & Rejection Handlers to prevent silent startup crashes
+process.on('uncaughtException', (err) => {
+  console.error('💥 UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 UNHANDLED REJECTION AT:', promise, 'reason:', reason);
+});
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -20,7 +28,7 @@ import { initScheduler } from './services/schedulerService';
 import { cleanupOldTempFiles, TEMP_DIR } from './services/videoService';
 
 const app = express();
-const PORT = process.env.HF_SPACE === 'true' ? 7860 : (process.env.PORT || 5000);
+const PORT = Number(process.env.HF_SPACE === 'true' ? 7860 : (process.env.PORT || 5000));
 
 // Auto-detect HF Space URL if running on Hugging Face
 if (process.env.HF_SPACE === 'true') {
@@ -34,9 +42,6 @@ if (process.env.HF_SPACE === 'true') {
 
 // Startup: clean stale temp files from previous runs
 cleanupOldTempFiles();
-
-// Init Automation Scheduler
-initScheduler();
 
 // --- CUSTOM SECURITY FIREWALL ---
 const requestTracker = new Map<string, { count: number, lastRequest: number }>();
@@ -95,7 +100,11 @@ app.use('/api/stats', statsRoutes);
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/autopost';
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Connected to MongoDB Atlas'))
+  .then(() => {
+    console.log('✅ Connected to MongoDB Atlas');
+    // Init Automation Scheduler only after DB connection is successful
+    initScheduler();
+  })
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
 // --- UNIFIED DEPLOYMENT LOGIC (Serve Frontend) ---
@@ -118,7 +127,7 @@ if (isProduction) {
   });
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Flora Engine running on port ${PORT}!`);
   if (isProduction) {
     console.log(`   Mode:      Production (Unified)`);

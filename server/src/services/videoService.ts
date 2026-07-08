@@ -11,15 +11,23 @@ const getTempDir = () => {
   const hfPersistentPath = '/data/temp';
   const localPath = path.join(process.cwd(), 'temp');
   
-  if (fs.existsSync('/data')) {
-    if (!fs.existsSync(hfPersistentPath)) {
-      fs.mkdirSync(hfPersistentPath, { recursive: true });
+  try {
+    if (fs.existsSync('/data')) {
+      if (!fs.existsSync(hfPersistentPath)) {
+        fs.mkdirSync(hfPersistentPath, { recursive: true });
+      }
+      return hfPersistentPath;
     }
-    return hfPersistentPath;
+  } catch (err) {
+    console.error('⚠️ Failed to create persistent temp directory, falling back to local:', err);
   }
   
-  if (!fs.existsSync(localPath)) {
-    fs.mkdirSync(localPath, { recursive: true });
+  try {
+    if (!fs.existsSync(localPath)) {
+      fs.mkdirSync(localPath, { recursive: true });
+    }
+  } catch (err) {
+    console.error('❌ Failed to create local temp directory:', err);
   }
   return localPath;
 };

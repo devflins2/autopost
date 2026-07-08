@@ -5,17 +5,25 @@ const getCacheDir = () => {
   const hfPersistentPath = '/data/temp/uploads';
   const localPath = path.join(process.cwd(), 'temp', 'uploads');
   
-  // If running on HF and /data exists, use it for persistence
-  if (fs.existsSync('/data')) {
-    if (!fs.existsSync(hfPersistentPath)) {
-      fs.mkdirSync(hfPersistentPath, { recursive: true });
+  try {
+    // If running on HF and /data exists, use it for persistence
+    if (fs.existsSync('/data')) {
+      if (!fs.existsSync(hfPersistentPath)) {
+        fs.mkdirSync(hfPersistentPath, { recursive: true });
+      }
+      return hfPersistentPath;
     }
-    return hfPersistentPath;
+  } catch (err) {
+    console.error('⚠️ Failed to create persistent cache directory, falling back to local:', err);
   }
   
-  // Fallback to local
-  if (!fs.existsSync(localPath)) {
-    fs.mkdirSync(localPath, { recursive: true });
+  try {
+    // Fallback to local
+    if (!fs.existsSync(localPath)) {
+      fs.mkdirSync(localPath, { recursive: true });
+    }
+  } catch (err) {
+    console.error('❌ Failed to create local cache directory:', err);
   }
   return localPath;
 };
