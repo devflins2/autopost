@@ -92,10 +92,11 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
 };
 
 const httpsAgent = new https.Agent({
-  family: 4, // Force IPv4 to prevent SSL EPROTO handshake failures on Hugging Face
-  keepAlive: true,
+  keepAlive: false, // Disable keepAlive to prevent socket reuse/stale connection EPROTO errors
   minVersion: 'TLSv1.2',
-  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT
+  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+  autoSelectFamily: true,
+  autoSelectFamilyAttemptTimeout: 1000 // 1s timeout to check next family
 });
 
 const metaClient = axios.create({
