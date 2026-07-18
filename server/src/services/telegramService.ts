@@ -32,7 +32,12 @@ export const sendTelegramNotification = async (message: string, attempts: number
         chat_id: telegramChatId,
         text: message,
         parse_mode: 'HTML'
-      }, { timeout: 8000 });
+      }, { 
+        timeout: 8000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
       
       return; // Success, exit
     } catch (error: any) {
@@ -46,7 +51,12 @@ export const sendTelegramNotification = async (message: string, attempts: number
           await axios.post(url, {
             chat_id: telegramChatId,
             text: `[Fallback] ${plainText}`
-          }, { timeout: 8000 });
+          }, { 
+            timeout: 8000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
           return;
         } catch (innerError: any) {
           const innerMsg = innerError.response?.data?.description || innerError.message;

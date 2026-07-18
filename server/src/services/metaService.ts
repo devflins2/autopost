@@ -92,17 +92,19 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
 };
 
 const httpsAgent = new https.Agent({
+  family: 4, // Force IPv4 to prevent SSL EPROTO handshake failures on Hugging Face
   keepAlive: false, // Disable keepAlive to prevent socket reuse/stale connection EPROTO errors
   minVersion: 'TLSv1.2',
-  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
-  autoSelectFamily: true,
-  autoSelectFamilyAttemptTimeout: 1000 // 1s timeout to check next family
+  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT
 });
 
 const metaClient = axios.create({
   baseURL: `https://graph.facebook.com/${API_VERSION}`,
   timeout: 180000, // 3 minutes timeout
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  },
   httpsAgent: httpsAgent
 });
 

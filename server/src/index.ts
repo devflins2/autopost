@@ -9,8 +9,8 @@ process.on('unhandledRejection', (reason, promise) => {
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Removed dns.setDefaultResultOrder('ipv4first') to allow Node's default Happy Eyeballs algorithm (autoSelectFamily)
-// to resolve and connect to IPv6 and IPv4 addresses dynamically, preventing timeouts and SSL handshake blocks on Hugging Face.
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first'); // Force IPv4 globally to prevent broken IPv6 EPROTO handshake failures on Hugging Face
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
