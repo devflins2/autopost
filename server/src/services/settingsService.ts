@@ -53,7 +53,10 @@ export const saveSettings = async (updates: Partial<ISettings>): Promise<ISettin
     'hfToken',
     'pexelsApiKey',
     'pixabayApiKey',
-    'songLinks'
+    'songLinks',
+    'proxyUrl',
+    'metaBaseUrl',
+    'telegramBaseUrl'
   ];
 
   for (const key of allowedKeys) {

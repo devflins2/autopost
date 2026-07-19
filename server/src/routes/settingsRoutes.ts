@@ -30,7 +30,10 @@ router.get('/', async (req, res) => {
       hfToken: maskSecret(settings.hfToken),
       pexelsApiKey: maskSecret(settings.pexelsApiKey),
       pixabayApiKey: maskSecret(settings.pixabayApiKey),
-      songLinks: settings.songLinks || ''
+      songLinks: settings.songLinks || '',
+      proxyUrl: maskSecret(settings.proxyUrl),
+      metaBaseUrl: settings.metaBaseUrl || 'https://graph.facebook.com',
+      telegramBaseUrl: settings.telegramBaseUrl || 'https://api.telegram.org'
     };
 
     res.json({ success: true, data: responseData });
@@ -54,7 +57,10 @@ router.post('/', async (req, res) => {
       'hfToken',
       'pexelsApiKey',
       'pixabayApiKey',
-      'songLinks'
+      'songLinks',
+      'proxyUrl',
+      'metaBaseUrl',
+      'telegramBaseUrl'
     ];
 
     for (const key of fieldsToProcess) {

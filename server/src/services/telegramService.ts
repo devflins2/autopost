@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { getSetting } from './settingsService';
 
 const escapeHTML = (str: string): string => {
@@ -18,13 +19,20 @@ const escapeHTML = (str: string): string => {
 export const sendTelegramNotification = async (message: string, attempts: number = 2): Promise<void> => {
   const telegramBotToken = await getSetting('telegramBotToken') || process.env.TELEGRAM_BOT_TOKEN;
   const telegramChatId = await getSetting('telegramChatId') || process.env.TELEGRAM_CHAT_ID;
+  const telegramBaseUrl = await getSetting('telegramBaseUrl') || process.env.TELEGRAM_BASE_URL || 'https://api.telegram.org';
+  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
 
   if (!telegramBotToken || !telegramChatId) {
     console.warn('⚠️ Telegram config missing (Bot Token or Chat ID). Skipping notification.');
     return;
   }
 
-  const url = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
+  const url = `${telegramBaseUrl}/bot${telegramBotToken}/sendMessage`;
+
+  let agent: any = undefined;
+  if (proxyUrl) {
+    agent = new HttpsProxyAgent(proxyUrl);
+  }
 
   for (let i = 0; i < attempts; i++) {
     try {
@@ -34,6 +42,8 @@ export const sendTelegramNotification = async (message: string, attempts: number
         parse_mode: 'HTML'
       }, { 
         timeout: 8000,
+        httpsAgent: agent,
+        proxy: false,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
@@ -53,6 +63,8 @@ export const sendTelegramNotification = async (message: string, attempts: number
             text: `[Fallback] ${plainText}`
           }, { 
             timeout: 8000,
+            httpsAgent: agent,
+            proxy: false,
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }

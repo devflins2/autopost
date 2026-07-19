@@ -77,7 +77,10 @@ function App() {
     hfToken: '',
     pexelsApiKey: '',
     pixabayApiKey: '',
-    songLinks: ''
+    songLinks: '',
+    proxyUrl: '',
+    metaBaseUrl: '',
+    telegramBaseUrl: ''
   });
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -763,6 +766,56 @@ function App() {
                               value={settings.songLinks}
                               onChange={(e) => setSettings({ ...settings, songLinks: e.target.value })}
                             />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Network & Proxy Settings */}
+                      <div className="glass-card p-8 rounded-[2rem] border border-white/5 space-y-6">
+                        <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                          <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400">
+                            <Cloud size={20} />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg text-white">Network & Proxy Settings</h3>
+                            <p className="text-xs text-gray-500">Configure outbound proxies and custom base URLs to bypass firewall/egress blocks</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Outbound Proxy URL</label>
+                            <input 
+                              type="password" 
+                              placeholder="e.g. http://username:password@proxy-host:port"
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                              value={settings.proxyUrl}
+                              onChange={(e) => setSettings({ ...settings, proxyUrl: e.target.value })}
+                            />
+                            <p className="text-[10px] text-gray-500 mt-1">Supports HTTP, HTTPS, or SOCKS5 proxy URLs. Leave empty if no proxy is required.</p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Meta API Base URL</label>
+                              <input 
+                                type="text" 
+                                placeholder="Default: https://graph.facebook.com"
+                                className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                                value={settings.metaBaseUrl}
+                                onChange={(e) => setSettings({ ...settings, metaBaseUrl: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Telegram API Base URL</label>
+                              <input 
+                                type="text" 
+                                placeholder="Default: https://api.telegram.org"
+                                className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                                value={settings.telegramBaseUrl}
+                                onChange={(e) => setSettings({ ...settings, telegramBaseUrl: e.target.value })}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>

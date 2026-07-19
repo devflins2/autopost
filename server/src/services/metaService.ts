@@ -1,6 +1,7 @@
 import axios from 'axios';
 import https from 'https';
 import crypto from 'crypto';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { getSetting } from './settingsService';
 
 const API_VERSION = 'v20.0';
@@ -91,22 +92,33 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
   throw new Error(errorData);
 };
 
-const httpsAgent = new https.Agent({
+const defaultHttpsAgent = new https.Agent({
   family: 4, // Force IPv4 to prevent SSL EPROTO handshake failures on Hugging Face
   keepAlive: false, // Disable keepAlive to prevent socket reuse/stale connection EPROTO errors
   minVersion: 'TLSv1.2',
   secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT
 });
 
-const metaClient = axios.create({
-  baseURL: `https://graph.facebook.com/${API_VERSION}`,
-  timeout: 180000, // 3 minutes timeout
-  headers: { 
-    'Content-Type': 'application/json',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-  },
-  httpsAgent: httpsAgent
-});
+const getMetaClient = async () => {
+  const metaBaseUrl = await getSetting('metaBaseUrl') || process.env.META_BASE_URL || 'https://graph.facebook.com';
+  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
+
+  let agent: any = defaultHttpsAgent;
+  if (proxyUrl) {
+    agent = new HttpsProxyAgent(proxyUrl);
+  }
+
+  return axios.create({
+    baseURL: `${metaBaseUrl}/${API_VERSION}`,
+    timeout: 180000, // 3 minutes timeout
+    headers: { 
+      'Content-Type': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    },
+    httpsAgent: agent,
+    proxy: false // Disable axios built-in proxy settings to prevent conflict with HttpsProxyAgent
+  });
+};
 
 /**
  * Post an Image to Instagram
@@ -116,11 +128,12 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
     const { token, igId, fbId } = await getMetaCredentials();
     checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
-    const containerRes = await metaClient.post(`/${igId}/media`, {
+    const client = await getMetaClient();
+    const containerRes = await client.post(`/${igId}/media`, {
       image_url: imageUrl, caption, access_token: token
     });
     
-    const publishRes = await metaClient.post(`/${igId}/media_publish`, {
+    const publishRes = await client.post(`/${igId}/media_publish`, {
       creation_id: containerRes.data.id, access_token: token
     });
     return publishRes.data;
@@ -138,7 +151,8 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     const { token, igId, fbId } = await getMetaCredentials();
     checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
-    const containerRes = await metaClient.post(`/${igId}/media`, {
+    const client = await getMetaClient();
+    const containerRes = await client.post(`/${igId}/media`, {
       media_type: 'REELS', video_url: videoUrl, caption, access_token: token
     });
     const creationId = containerRes.data.id;
@@ -148,7 +162,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     while (status === 'IN_PROGRESS' && attempts < 15) {
       attempts++;
       await new Promise(resolve => setTimeout(resolve, 30000));
-      const statusRes = await metaClient.get(`/${creationId}`, {
+      const statusRes = await client.get(`/${creationId}`, {
         params: { fields: 'status_code', access_token: token }
       });
       status = statusRes.data.status_code;
@@ -163,7 +177,7 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     }
 
     console.log('🚀 Publishing Reel...');
-    const publishRes = await metaClient.post(`/${igId}/media_publish`, {
+    const publishRes = await client.post(`/${igId}/media_publish`, {
       creation_id: creationId, access_token: token
     });
     return publishRes.data;
@@ -178,7 +192,8 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
  */
 export const getPageAccessToken = async (userToken: string, fbId: string): Promise<string> => {
   try {
-    const res = await metaClient.get(`/${fbId}`, {
+    const client = await getMetaClient();
+    const res = await client.get(`/${fbId}`, {
       params: { fields: 'access_token', access_token: userToken }
     });
     if (res.data && res.data.access_token) {
@@ -201,7 +216,8 @@ export const postToFacebookPage = async (imageUrl: string, message: string) => {
     checkMetaEnv('facebook', token, igId, fbId);
     checkRateLimit();
     const pageToken = await getPageAccessToken(token, fbId);
-    const res = await metaClient.post(`/${fbId}/photos`, {
+    const client = await getMetaClient();
+    const res = await client.post(`/${fbId}/photos`, {
       url: imageUrl, caption: message, access_token: pageToken
     });
     return res.data;
@@ -220,7 +236,8 @@ export const postVideoToFacebookPage = async (videoUrl: string, message: string)
     checkMetaEnv('facebook', token, igId, fbId);
     checkRateLimit();
     const pageToken = await getPageAccessToken(token, fbId);
-    const res = await metaClient.post(`/${fbId}/videos`, {
+    const client = await getMetaClient();
+    const res = await client.post(`/${fbId}/videos`, {
       file_url: videoUrl, description: message, access_token: pageToken
     });
     return res.data;
@@ -238,11 +255,12 @@ export const getMediaInsights = async (mediaId: string) => {
     const { token, igId, fbId } = await getMetaCredentials();
     checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
-    const basicRes = await metaClient.get(`/${mediaId}`, {
+    const client = await getMetaClient();
+    const basicRes = await client.get(`/${mediaId}`, {
       params: { fields: 'like_count,comments_count,media_url', access_token: token }
     });
     
-    const insightRes = await metaClient.get(`/${mediaId}/insights`, {
+    const insightRes = await client.get(`/${mediaId}/insights`, {
       params: { metric: 'reach,impressions,saved,video_views', access_token: token }
     });
 
@@ -284,9 +302,10 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
       return;
     }
 
+    const client = await getMetaClient();
     // 1. Audit /me (Check token validity)
     try {
-      const meRes = await metaClient.get('/me', { params: { access_token: token } });
+      const meRes = await client.get('/me', { params: { access_token: token } });
       log(`✅ [Meta Audit] Token Owner Name: ${meRes.data.name}, ID: ${meRes.data.id}`);
     } catch (err: any) {
       log(`❌ [Meta Audit] Token Owner Audit: Token is invalid, expired, or revoked! ${err.message}`, true);
@@ -298,7 +317,7 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
 
     // 2. Audit /me/permissions (Check granted scopes)
     try {
-      const permRes = await metaClient.get('/me/permissions', { params: { access_token: token } });
+      const permRes = await client.get('/me/permissions', { params: { access_token: token } });
       const permData = permRes.data.data || [];
       const granted = permData
         .filter((p: any) => p.status === 'granted')
@@ -325,7 +344,7 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
     // 3. Audit Facebook Page ID
     if (fbId) {
       try {
-        const pageRes = await metaClient.get(`/${fbId}`, {
+        const pageRes = await client.get(`/${fbId}`, {
           params: { fields: 'name,instagram_business_account', access_token: token }
         });
         log(`✅ [Meta Audit] Facebook Page: "${pageRes.data.name}" (ID: ${fbId})`);
@@ -351,7 +370,7 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
     // 4. Audit Instagram Business Account
     if (igId) {
       try {
-        const igRes = await metaClient.get(`/${igId}`, {
+        const igRes = await client.get(`/${igId}`, {
           params: { fields: 'username,name', access_token: token }
         });
         log(`✅ [Meta Audit] Instagram Professional Profile: Name: "${igRes.data.name}", Username: @${igRes.data.username} (ID: ${igId})`);

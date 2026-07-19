@@ -11,6 +11,9 @@ export interface ISettings extends Document {
   pexelsApiKey?: string;
   pixabayApiKey?: string;
   songLinks?: string;
+  proxyUrl?: string;
+  metaBaseUrl?: string;
+  telegramBaseUrl?: string;
 }
 
 const SettingsSchema: Schema = new Schema({
@@ -23,7 +26,10 @@ const SettingsSchema: Schema = new Schema({
   hfToken: { type: String, default: '' },
   pexelsApiKey: { type: String, default: '' },
   pixabayApiKey: { type: String, default: '' },
-  songLinks: { type: String, default: '' }
+  songLinks: { type: String, default: '' },
+  proxyUrl: { type: String, default: '' },
+  metaBaseUrl: { type: String, default: 'https://graph.facebook.com' },
+  telegramBaseUrl: { type: String, default: 'https://api.telegram.org' }
 }, { timestamps: true });
 
 export default mongoose.model<ISettings>('Settings', SettingsSchema);

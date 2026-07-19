@@ -2,6 +2,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import fs from 'fs';
 import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { pipeline } from 'stream/promises';
 import FormData from 'form-data';
 import { getSetting } from './settingsService';
@@ -71,12 +72,20 @@ const downloadFileStreamed = async (
   maxSizeMB: number = 50
 ): Promise<boolean> => {
   try {
+    const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
+    let agent: any = undefined;
+    if (proxyUrl) {
+      agent = new HttpsProxyAgent(proxyUrl);
+    }
+
     const response = await axios({
       method: 'get',
       url,
       responseType: 'stream',
       maxRedirects: 5,
       timeout: 30000,
+      httpsAgent: agent,
+      proxy: false,
       headers: { 
         'User-Agent': 'FloraBot/1.0 (https://huggingface.co/spaces/floraa18/floraa; bot)',
         'Accept': '*/*'
