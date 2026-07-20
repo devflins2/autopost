@@ -59,6 +59,11 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
     errorData = `${defaultMessage}: ${error.message}`;
   }
 
+  // Check for SSL/TLS protocol or connection failures to suggest proxy configuration
+  if (error.code === 'EPROTO' || error.message?.includes('EPROTO') || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+    errorData += ' (Troubleshooting Hint: Meta might be blocking Hugging Face outbound IPs. Please configure a residential or clean proxy in Settings via "proxyUrl" or set the "PROXY_URL" environment variable.)';
+  }
+
   // Safely print request details for debugging, redacting sensitive tokens
   if (error.config) {
     let requestData = error.config.data;
@@ -94,7 +99,9 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
 
 const defaultHttpsAgent = new https.Agent({
   family: 4, // Force IPv4 to prevent SSL EPROTO handshake failures on Hugging Face
-  keepAlive: false, // Disable keepAlive to prevent socket reuse/stale connection EPROTO errors
+  keepAlive: true, // Enable keepAlive to reuse connections and avoid handshake drops
+  keepAliveMsecs: 1000,
+  maxSockets: 256,
   minVersion: 'TLSv1.2',
   secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT
 });
