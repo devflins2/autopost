@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import { getSetting } from './settingsService';
+import { getProxyAgent } from '../utils/proxyHelper';
 
 const escapeHTML = (str: string): string => {
   const map: Record<string, string> = {
@@ -28,11 +28,7 @@ export const sendTelegramNotification = async (message: string, attempts: number
   }
 
   const url = `${telegramBaseUrl}/bot${telegramBotToken}/sendMessage`;
-
-  let agent: any = undefined;
-  if (proxyUrl) {
-    agent = new HttpsProxyAgent(proxyUrl);
-  }
+  const agent = getProxyAgent(proxyUrl);
 
   for (let i = 0; i < attempts; i++) {
     try {

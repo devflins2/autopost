@@ -2,7 +2,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import fs from 'fs';
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '../utils/proxyHelper';
 import { pipeline } from 'stream/promises';
 import FormData from 'form-data';
 import { getSetting } from './settingsService';
@@ -73,10 +73,7 @@ const downloadFileStreamed = async (
 ): Promise<boolean> => {
   try {
     const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
-    let agent: any = undefined;
-    if (proxyUrl) {
-      agent = new HttpsProxyAgent(proxyUrl);
-    }
+    const agent = getProxyAgent(proxyUrl);
 
     const response = await axios({
       method: 'get',

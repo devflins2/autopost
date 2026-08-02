@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getSetting } from './settingsService';
+import { getProxyAgent } from '../utils/proxyHelper';
 
 const MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2";
 
@@ -9,6 +10,9 @@ const MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral
  */
 export const generateSmartCaption = async (keyword: string): Promise<string> => {
   const hfToken = await getSetting('hfToken') || process.env.HF_TOKEN;
+  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
+  const agent = getProxyAgent(proxyUrl);
+
   if (hfToken) {
     try {
       const prompt = `Write a short, poetic, and engaging Instagram Reel caption about "${keyword}". Include emojis. Stay under 30 words. Do not include hashtags yet.`;
@@ -16,7 +20,11 @@ export const generateSmartCaption = async (keyword: string): Promise<string> => 
       const response = await axios.post(
         MODEL_URL,
         { inputs: prompt, parameters: { max_new_tokens: 60, temperature: 0.7 } },
-        { headers: { Authorization: `Bearer ${hfToken}` } }
+        { 
+          headers: { Authorization: `Bearer ${hfToken}` },
+          httpsAgent: agent,
+          proxy: false
+        }
       );
 
       let caption = response.data[0]?.generated_text || '';

@@ -1,8 +1,6 @@
 import axios from 'axios';
-import https from 'https';
-import crypto from 'crypto';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import { getSetting } from './settingsService';
+import { getProxyAgent } from '../utils/proxyHelper';
 
 const API_VERSION = 'v20.0';
 
@@ -97,23 +95,10 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
   throw new Error(errorData);
 };
 
-const defaultHttpsAgent = new https.Agent({
-  family: 4, // Force IPv4 to prevent SSL EPROTO handshake failures on Hugging Face
-  keepAlive: true, // Enable keepAlive to reuse connections and avoid handshake drops
-  keepAliveMsecs: 1000,
-  maxSockets: 256,
-  minVersion: 'TLSv1.2',
-  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT
-});
-
 const getMetaClient = async () => {
   const metaBaseUrl = await getSetting('metaBaseUrl') || process.env.META_BASE_URL || 'https://graph.facebook.com';
   const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
-
-  let agent: any = defaultHttpsAgent;
-  if (proxyUrl) {
-    agent = new HttpsProxyAgent(proxyUrl);
-  }
+  const agent = getProxyAgent(proxyUrl);
 
   return axios.create({
     baseURL: `${metaBaseUrl}/${API_VERSION}`,

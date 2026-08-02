@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getSetting } from './settingsService';
+import { getProxyAgent } from '../utils/proxyHelper';
 
 export interface MediaItem {
   id: string;
@@ -16,6 +17,8 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
 
   const pexelsApiKey = await getSetting('pexelsApiKey') || process.env.PEXELS_API_KEY;
   const pixabayApiKey = await getSetting('pixabayApiKey') || process.env.PIXABAY_API_KEY;
+  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
+  const agent = getProxyAgent(proxyUrl);
 
   try {
     // Fetch from Pexels
@@ -24,7 +27,9 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
         headers: { 
           Authorization: pexelsApiKey,
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
+        },
+        httpsAgent: agent,
+        proxy: false
       });
       const pexelsItems: MediaItem[] = pexelsRes.data.photos.map((photo: any) => ({
         id: photo.id.toString(),
@@ -41,7 +46,9 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
       const pixabayRes = await axios.get(`https://pixabay.com/api/?key=${pixabayApiKey}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&image_type=photo&page=${randomPage}`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
+        },
+        httpsAgent: agent,
+        proxy: false
       });
       const pixabayItems: MediaItem[] = pixabayRes.data.hits.map((hit: any) => ({
         id: hit.id.toString(),
@@ -66,6 +73,8 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
 
   const pexelsApiKey = await getSetting('pexelsApiKey') || process.env.PEXELS_API_KEY;
   const pixabayApiKey = await getSetting('pixabayApiKey') || process.env.PIXABAY_API_KEY;
+  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
+  const agent = getProxyAgent(proxyUrl);
 
   try {
     // Fetch from Pexels
@@ -74,7 +83,9 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
         headers: { 
           Authorization: pexelsApiKey,
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
+        },
+        httpsAgent: agent,
+        proxy: false
       });
       const pexelsItems: MediaItem[] = pexelsRes.data.videos.map((video: any) => ({
         id: video.id.toString(),
@@ -91,7 +102,9 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
       const pixabayRes = await axios.get(`https://pixabay.com/api/videos/?key=${pixabayApiKey}&q=${encodeURIComponent(query)}&per_page=${safePerPage}&page=${randomPage}`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
+        },
+        httpsAgent: agent,
+        proxy: false
       });
       const pixabayItems: MediaItem[] = pixabayRes.data.hits.map((hit: any) => ({
         id: hit.id.toString(),

@@ -91,6 +91,11 @@ function App() {
   const [diagnosticLogs, setDiagnosticLogs] = useState<string[]>([]);
   const [testingMeta, setTestingMeta] = useState(false);
 
+  // Auto Proxy Finder states
+  const [autoProxyFinding, setAutoProxyFinding] = useState(false);
+  const [autoProxyLogs, setAutoProxyLogs] = useState<string[]>([]);
+  const [autoProxyResult, setAutoProxyResult] = useState<{ success: boolean; message: string; proxyUrl?: string } | null>(null);
+
   const discoveryKeywords = useMemo(() => ['forest', 'mountains', 'ocean', 'wildlife', 'landscape', 'waterfall', 'desert'], []);
 
   // Update Axios Header whenever password changes or on load
@@ -785,14 +790,64 @@ function App() {
                         <div className="space-y-4">
                           <div>
                             <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Outbound Proxy URL</label>
-                            <input 
-                              type="password" 
-                              placeholder="e.g. http://username:password@proxy-host:port"
-                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
-                              value={settings.proxyUrl}
-                              onChange={(e) => setSettings({ ...settings, proxyUrl: e.target.value })}
-                            />
-                            <p className="text-[10px] text-gray-500 mt-1">Supports HTTP, HTTPS, or SOCKS5 proxy URLs. Leave empty if no proxy is required.</p>
+                            <div className="flex gap-2">
+                              <input 
+                                type="password" 
+                                placeholder="e.g. http://username:password@proxy-host:port"
+                                className="flex-1 bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                                value={settings.proxyUrl}
+                                onChange={(e) => setSettings({ ...settings, proxyUrl: e.target.value })}
+                              />
+                              <button
+                                type="button"
+                                id="auto-find-proxy-btn"
+                                disabled={autoProxyFinding}
+                                onClick={async () => {
+                                  setAutoProxyFinding(true);
+                                  setAutoProxyLogs([]);
+                                  setAutoProxyResult(null);
+                                  try {
+                                    const res = await axios.post('/api/settings/auto-proxy');
+                                    setAutoProxyLogs(res.data.logs || []);
+                                    setAutoProxyResult({ success: res.data.success, message: res.data.message, proxyUrl: res.data.proxyUrl });
+                                    if (res.data.success && res.data.proxyUrl) {
+                                      setSettings(prev => ({ ...prev, proxyUrl: res.data.proxyUrl }));
+                                    }
+                                  } catch (err: any) {
+                                    setAutoProxyResult({ success: false, message: err?.response?.data?.error || err.message });
+                                  } finally {
+                                    setAutoProxyFinding(false);
+                                  }
+                                }}
+                                className="shrink-0 px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl text-white text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-blue-600/20"
+                              >
+                                {autoProxyFinding ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                                {autoProxyFinding ? 'Finding...' : 'Auto Find'}
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-1">Supports HTTP, HTTPS, or SOCKS5 proxy URLs. Leave empty if no proxy is required. Or click <strong className="text-blue-400">Auto Find</strong> to automatically find a working proxy.</p>
+
+                            {/* Auto Proxy Result Panel */}
+                            {(autoProxyFinding || autoProxyLogs.length > 0 || autoProxyResult) && (
+                              <div className="mt-3 bg-black/30 border border-white/10 rounded-2xl p-4 space-y-2">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Zap size={12} className="text-blue-400" />
+                                  <span className="text-xs font-black text-blue-400 uppercase tracking-widest">Auto Proxy Finder</span>
+                                  {autoProxyFinding && <Loader2 size={12} className="animate-spin text-blue-400 ml-auto" />}
+                                </div>
+                                <div className="font-mono text-[10px] text-gray-400 space-y-1 max-h-28 overflow-y-auto">
+                                  {autoProxyLogs.map((log, i) => (
+                                    <div key={i} className={log.startsWith('✅') ? 'text-green-400' : log.startsWith('❌') ? 'text-red-400' : 'text-gray-400'}>{log}</div>
+                                  ))}
+                                  {autoProxyFinding && <div className="text-blue-400 animate-pulse">Testing proxies against Meta API...</div>}
+                                </div>
+                                {autoProxyResult && (
+                                  <div className={`mt-2 text-xs font-bold px-3 py-2 rounded-xl ${autoProxyResult.success ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                    {autoProxyResult.success ? '✅' : '❌'} {autoProxyResult.message}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
