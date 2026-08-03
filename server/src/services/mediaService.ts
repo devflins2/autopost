@@ -15,10 +15,9 @@ export const fetchImages = async (query: string = 'nature', perPage: number = 10
   const safePerPage = Math.max(3, perPage); // Pixabay requires min 3
   const randomPage = Math.floor(Math.random() * 3) + 1; // Random page 1-3
 
-  const pexelsApiKey = await getSetting('pexelsApiKey') || process.env.PEXELS_API_KEY;
-  const pixabayApiKey = await getSetting('pixabayApiKey') || process.env.PIXABAY_API_KEY;
-  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
-  const agent = getProxyAgent(proxyUrl);
+  const pexelsApiKey = await getSetting('pexelsApiKey');
+  const pixabayApiKey = await getSetting('pixabayApiKey');
+  const agent = getProxyAgent(''); // Direct connection for sourcing images
 
   try {
     // Fetch from Pexels
@@ -71,10 +70,9 @@ export const fetchVideos = async (query: string = 'nature', perPage: number = 10
   const safePerPage = Math.max(3, perPage); // Pixabay requires min 3
   const randomPage = Math.floor(Math.random() * 3) + 1; // Random page 1-3
 
-  const pexelsApiKey = await getSetting('pexelsApiKey') || process.env.PEXELS_API_KEY;
-  const pixabayApiKey = await getSetting('pixabayApiKey') || process.env.PIXABAY_API_KEY;
-  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
-  const agent = getProxyAgent(proxyUrl);
+  const pexelsApiKey = await getSetting('pexelsApiKey');
+  const pixabayApiKey = await getSetting('pixabayApiKey');
+  const agent = getProxyAgent(''); // Direct connection for sourcing videos
 
   try {
     // Fetch from Pexels

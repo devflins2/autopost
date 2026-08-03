@@ -72,8 +72,7 @@ const downloadFileStreamed = async (
   maxSizeMB: number = 50
 ): Promise<boolean> => {
   try {
-    const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
-    const agent = getProxyAgent(proxyUrl);
+    const agent = getProxyAgent(''); // Direct connection for downloading media files
 
     const response = await axios({
       method: 'get',
@@ -237,7 +236,7 @@ const getCategoryOrder = (keyword: string): AudioCategory[] => {
 };
 
 export const getRandomSong = async (keyword?: string): Promise<string | null> => {
-  const songLinks = await getSetting('songLinks') || process.env.SONG_LINKS;
+  const songLinks = await getSetting('songLinks');
   if (!songLinks) return null;
 
   const links = songLinks.split(',').map(s => s.trim()).filter(Boolean);
@@ -470,7 +469,7 @@ export const uploadToPublicHost = async (filePath: string): Promise<{ url: strin
     const fileName = path.basename(filePath);
     
     // In production on HF, we use the PUBLIC_URL
-    const host = process.env.PUBLIC_URL || 'http://localhost:7860';
+    const host = (process.env.PUBLIC_URL || 'http://localhost:7860').trim();
     const url = `${host}/temp/${fileName}`;
 
     console.log(`✅ Media is now live at: ${url}`);

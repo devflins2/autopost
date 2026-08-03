@@ -19,9 +19,9 @@ export const checkRateLimit = () => {
  * Resolves Meta Credentials dynamically at runtime
  */
 export const getMetaCredentials = async () => {
-  const token = await getSetting('metaAccessToken') || process.env.META_ACCESS_TOKEN || '';
-  const igId = await getSetting('instagramAccountId') || process.env.INSTAGRAM_ACCOUNT_ID || process.env.INSTAGRAM_BUSINESS_ID || '';
-  const fbId = await getSetting('facebookPageId') || process.env.FACEBOOK_PAGE_ID || '';
+  const token = await getSetting('metaAccessToken');
+  const igId = await getSetting('instagramAccountId');
+  const fbId = await getSetting('facebookPageId');
   return { token, igId, fbId };
 };
 
@@ -96,8 +96,8 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
 };
 
 const getMetaClient = async () => {
-  const metaBaseUrl = await getSetting('metaBaseUrl') || process.env.META_BASE_URL || 'https://graph.facebook.com';
-  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
+  const metaBaseUrl = await getSetting('metaBaseUrl');
+  const proxyUrl = await getSetting('proxyUrl');
   const agent = getProxyAgent(proxyUrl);
 
   return axios.create({

@@ -98,7 +98,7 @@ app.use('/api/logs', logRoutes);
 app.use('/api/stats', statsRoutes);
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/autopost';
+const MONGODB_URI = (process.env.MONGODB_URI || 'mongodb://localhost:27017/autopost').trim();
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB Atlas');

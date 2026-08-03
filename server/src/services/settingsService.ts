@@ -32,6 +32,35 @@ export const getSetting = async (field: keyof ISettings): Promise<string> => {
   } catch (error) {
     console.error(`Error loading setting "${field}" from database:`, error);
   }
+
+  // Fallback to environment variables
+  const envMapping: Record<string, string[]> = {
+    metaAccessToken: ['META_ACCESS_TOKEN'],
+    instagramAccountId: ['INSTAGRAM_ACCOUNT_ID', 'INSTAGRAM_BUSINESS_ID'],
+    facebookPageId: ['FACEBOOK_PAGE_ID'],
+    telegramBotToken: ['TELEGRAM_BOT_TOKEN'],
+    telegramChatId: ['TELEGRAM_CHAT_ID'],
+    hfToken: ['HF_TOKEN'],
+    pexelsApiKey: ['PEXELS_API_KEY'],
+    pixabayApiKey: ['PIXABAY_API_KEY'],
+    songLinks: ['SONG_LINKS'],
+    proxyUrl: ['PROXY_URL'],
+    metaBaseUrl: ['META_BASE_URL'],
+    telegramBaseUrl: ['TELEGRAM_BASE_URL']
+  };
+
+  const envKeys = envMapping[field] || [];
+  for (const envKey of envKeys) {
+    const val = process.env[envKey];
+    if (val && typeof val === 'string' && val.trim() !== '') {
+      return val.trim();
+    }
+  }
+
+  // Hardcoded defaults
+  if (field === 'metaBaseUrl') return 'https://graph.facebook.com';
+  if (field === 'telegramBaseUrl') return 'https://api.telegram.org';
+
   return '';
 };
 

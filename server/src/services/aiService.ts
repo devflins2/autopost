@@ -9,9 +9,8 @@ const MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral
  * Falls back to template system if API fails or Token is missing.
  */
 export const generateSmartCaption = async (keyword: string): Promise<string> => {
-  const hfToken = await getSetting('hfToken') || process.env.HF_TOKEN;
-  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
-  const agent = getProxyAgent(proxyUrl);
+  const hfToken = await getSetting('hfToken');
+  const agent = getProxyAgent(''); // Direct connection for Hugging Face Inference
 
   if (hfToken) {
     try {

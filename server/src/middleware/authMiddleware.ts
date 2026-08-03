@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const password = req.headers['x-dashboard-password'];
-  const correctPassword = process.env.DASHBOARD_PASSWORD;
+  const correctPassword = process.env.DASHBOARD_PASSWORD?.trim();
 
   if (!correctPassword || password === correctPassword) {
     return next();

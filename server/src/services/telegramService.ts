@@ -17,10 +17,9 @@ const escapeHTML = (str: string): string => {
  * Sends a notification to the configured Telegram bot.
  */
 export const sendTelegramNotification = async (message: string, attempts: number = 2): Promise<void> => {
-  const telegramBotToken = await getSetting('telegramBotToken') || process.env.TELEGRAM_BOT_TOKEN;
-  const telegramChatId = await getSetting('telegramChatId') || process.env.TELEGRAM_CHAT_ID;
-  const telegramBaseUrl = await getSetting('telegramBaseUrl') || process.env.TELEGRAM_BASE_URL || 'https://api.telegram.org';
-  const proxyUrl = await getSetting('proxyUrl') || process.env.PROXY_URL || '';
+  const telegramBotToken = await getSetting('telegramBotToken');
+  const telegramChatId = await getSetting('telegramChatId');
+  const telegramBaseUrl = await getSetting('telegramBaseUrl');
 
   if (!telegramBotToken || !telegramChatId) {
     console.warn('⚠️ Telegram config missing (Bot Token or Chat ID). Skipping notification.');
@@ -28,7 +27,7 @@ export const sendTelegramNotification = async (message: string, attempts: number
   }
 
   const url = `${telegramBaseUrl}/bot${telegramBotToken}/sendMessage`;
-  const agent = getProxyAgent(proxyUrl);
+  const agent = getProxyAgent(''); // Direct connection for Telegram
 
   for (let i = 0; i < attempts; i++) {
     try {
