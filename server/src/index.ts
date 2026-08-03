@@ -105,7 +105,11 @@ mongoose.connect(MONGODB_URI)
     // Init Automation Scheduler only after DB connection is successful
     initScheduler();
   })
-  .catch((err) => console.error('❌ MongoDB connection error:', err));
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err);
+    console.log('⚠️ Running in local MOCK/DATABASE-FREE mode with local env variables...');
+    initScheduler();
+  });
 
 // --- UNIFIED DEPLOYMENT LOGIC (Serve Frontend) ---
 const isProduction = process.env.NODE_ENV === 'production' || process.env.HF_SPACE === 'true';

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Settings, { ISettings } from '../models/Settings';
 import axios from 'axios';
 import { SocksProxyAgent } from 'socks-proxy-agent';
@@ -6,11 +7,29 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 let cachedSettings: ISettings | null = null;
 let lastAutoProxyTime = 0;
 
+const mockSettings: any = {
+  metaAccessToken: process.env.META_ACCESS_TOKEN || '',
+  instagramAccountId: process.env.INSTAGRAM_ACCOUNT_ID || '',
+  facebookPageId: process.env.FACEBOOK_PAGE_ID || '',
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
+  telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
+  hfToken: process.env.HF_TOKEN || '',
+  pexelsApiKey: process.env.PEXELS_API_KEY || '',
+  pixabayApiKey: process.env.PIXABAY_API_KEY || '',
+  songLinks: process.env.SONG_LINKS || '',
+  proxyUrl: process.env.PROXY_URL || '',
+  metaBaseUrl: process.env.META_BASE_URL || '',
+  telegramBaseUrl: process.env.TELEGRAM_BASE_URL || ''
+};
+
 /**
  * Loads the singleton settings document from MongoDB.
  * Creates it if it doesn't already exist.
  */
 export const loadSettings = async (): Promise<ISettings> => {
+  if (mongoose.connection.readyState !== 1) {
+    return mockSettings as ISettings;
+  }
   if (cachedSettings) return cachedSettings;
   
   let settings = await Settings.findOne({ key: 'global' });
@@ -28,13 +47,20 @@ export const loadSettings = async (): Promise<ISettings> => {
  */
 export const getSetting = async (field: keyof ISettings): Promise<string> => {
   try {
-    const settings = await loadSettings();
-    const dbValue = settings[field];
-    if (dbValue && typeof dbValue === 'string' && dbValue.trim() !== '') {
-      return dbValue.trim();
+    if (mongoose.connection.readyState === 1) {
+      const settings = await loadSettings();
+      const dbValue = settings[field];
+      if (dbValue && typeof dbValue === 'string' && dbValue.trim() !== '') {
+        return dbValue.trim();
+      }
+    } else {
+      const val = mockSettings[field];
+      if (val && typeof val === 'string' && val.trim() !== '') {
+        return val.trim();
+      }
     }
   } catch (error) {
-    console.error(`Error loading setting "${field}" from database:`, error);
+    console.error(`Error loading setting "${field}":`, error);
   }
 
   // Fallback to environment variables
@@ -72,11 +98,6 @@ export const getSetting = async (field: keyof ISettings): Promise<string> => {
  * Saves/updates settings and clears the current in-memory cache.
  */
 export const saveSettings = async (updates: Partial<ISettings>): Promise<ISettings> => {
-  let settings = await Settings.findOne({ key: 'global' });
-  if (!settings) {
-    settings = new Settings({ key: 'global' });
-  }
-
   const allowedKeys: (keyof ISettings)[] = [
     'metaAccessToken',
     'instagramAccountId',
@@ -91,6 +112,20 @@ export const saveSettings = async (updates: Partial<ISettings>): Promise<ISettin
     'metaBaseUrl',
     'telegramBaseUrl'
   ];
+
+  if (mongoose.connection.readyState !== 1) {
+    for (const key of allowedKeys) {
+      if (updates[key] !== undefined) {
+        mockSettings[key] = updates[key];
+      }
+    }
+    return mockSettings as ISettings;
+  }
+
+  let settings = await Settings.findOne({ key: 'global' });
+  if (!settings) {
+    settings = new Settings({ key: 'global' });
+  }
 
   for (const key of allowedKeys) {
     if (updates[key] !== undefined) {
