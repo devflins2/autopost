@@ -294,6 +294,10 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
       return;
     }
 
+    const proxyUrl = await getSetting('proxyUrl');
+    const maskedProxy = proxyUrl ? proxyUrl.replace(/:([^:@\n\s]+)@/, ':***@') : 'None (Direct Connection)';
+    log(`📡 [Meta Audit] Proxy URL configured: ${maskedProxy}`);
+
     const client = await getMetaClient();
     // 1. Audit /me (Check token validity)
     try {
