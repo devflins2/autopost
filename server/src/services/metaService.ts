@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { getSetting } from './settingsService';
+import axios, { AxiosInstance } from 'axios';
+import { getSetting, autoConfigureProxy } from './settingsService';
 import { getProxyAgent } from '../utils/proxyHelper';
 
 const API_VERSION = 'v20.0';
@@ -112,6 +112,36 @@ const getMetaClient = async () => {
   });
 };
 
+const executeMetaRequest = async <T>(
+  requestFn: (client: AxiosInstance) => Promise<T>
+): Promise<T> => {
+  let client = await getMetaClient();
+  try {
+    return await requestFn(client);
+  } catch (error: any) {
+    const isNetworkError = 
+      error.code === 'EPROTO' || 
+      error.message?.includes('EPROTO') || 
+      error.code === 'ECONNRESET' || 
+      error.code === 'ETIMEDOUT' ||
+      error.message?.toLowerCase().includes('timeout') ||
+      error.message?.toLowerCase().includes('network error');
+
+    if (isNetworkError) {
+      console.warn('⚠️ Meta Connection Failed. Attempting self-healing proxy recovery...');
+      const newProxy = await autoConfigureProxy();
+      if (newProxy) {
+        console.log(`✅ Self-healing: Found and saved a new working proxy: ${newProxy}. Retrying request...`);
+        client = await getMetaClient();
+        return await requestFn(client);
+      } else {
+        console.error('❌ Self-healing: Failed to find any working proxy. Raising original error.');
+      }
+    }
+    throw error;
+  }
+};
+
 /**
  * Post an Image to Instagram
  */
@@ -120,15 +150,16 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
     const { token, igId, fbId } = await getMetaCredentials();
     checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
-    const client = await getMetaClient();
-    const containerRes = await client.post(`/${igId}/media`, {
-      image_url: imageUrl, caption, access_token: token
+    return await executeMetaRequest(async (client) => {
+      const containerRes = await client.post(`/${igId}/media`, {
+        image_url: imageUrl, caption, access_token: token
+      });
+      
+      const publishRes = await client.post(`/${igId}/media_publish`, {
+        creation_id: containerRes.data.id, access_token: token
+      });
+      return publishRes.data;
     });
-    
-    const publishRes = await client.post(`/${igId}/media_publish`, {
-      creation_id: containerRes.data.id, access_token: token
-    });
-    return publishRes.data;
   } catch (error: any) {
     console.error('Instagram Photo Error:', error.message);
     return handleAxiosError(error, 'Instagram Photo Error');
@@ -143,36 +174,38 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     const { token, igId, fbId } = await getMetaCredentials();
     checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
-    const client = await getMetaClient();
-    const containerRes = await client.post(`/${igId}/media`, {
-      media_type: 'REELS', video_url: videoUrl, caption, access_token: token
-    });
-    const creationId = containerRes.data.id;
 
-    let status = 'IN_PROGRESS';
-    let attempts = 0;
-    while (status === 'IN_PROGRESS' && attempts < 15) {
-      attempts++;
-      await new Promise(resolve => setTimeout(resolve, 30000));
-      const statusRes = await client.get(`/${creationId}`, {
-        params: { fields: 'status_code', access_token: token }
+    return await executeMetaRequest(async (client) => {
+      const containerRes = await client.post(`/${igId}/media`, {
+        media_type: 'REELS', video_url: videoUrl, caption, access_token: token
       });
-      status = statusRes.data.status_code;
-      console.log(`📽️ Reel Status [Attempt ${attempts}]:`, status);
-      
-      if (status === 'FINISHED') break;
-      if (status === 'ERROR') throw new Error(`Meta processing failed. Check your video format or account status.`);
-    }
+      const creationId = containerRes.data.id;
 
-    if (status !== 'FINISHED') {
-      throw new Error('Meta processing timed out (Video might be too large or URL unreachable)');
-    }
+      let status = 'IN_PROGRESS';
+      let attempts = 0;
+      while (status === 'IN_PROGRESS' && attempts < 15) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 30000));
+        const statusRes = await client.get(`/${creationId}`, {
+          params: { fields: 'status_code', access_token: token }
+        });
+        status = statusRes.data.status_code;
+        console.log(`📽️ Reel Status [Attempt ${attempts}]:`, status);
+        
+        if (status === 'FINISHED') break;
+        if (status === 'ERROR') throw new Error(`Meta processing failed. Check your video format or account status.`);
+      }
 
-    console.log('🚀 Publishing Reel...');
-    const publishRes = await client.post(`/${igId}/media_publish`, {
-      creation_id: creationId, access_token: token
+      if (status !== 'FINISHED') {
+        throw new Error('Meta processing timed out (Video might be too large or URL unreachable)');
+      }
+
+      console.log('🚀 Publishing Reel...');
+      const publishRes = await client.post(`/${igId}/media_publish`, {
+        creation_id: creationId, access_token: token
+      });
+      return publishRes.data;
     });
-    return publishRes.data;
   } catch (error: any) {
     console.error('❌ Instagram Reel Error:', error.message);
     return handleAxiosError(error, 'Instagram Reel Error');
@@ -184,14 +217,15 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
  */
 export const getPageAccessToken = async (userToken: string, fbId: string): Promise<string> => {
   try {
-    const client = await getMetaClient();
-    const res = await client.get(`/${fbId}`, {
-      params: { fields: 'access_token', access_token: userToken }
+    return await executeMetaRequest(async (client) => {
+      const res = await client.get(`/${fbId}`, {
+        params: { fields: 'access_token', access_token: userToken }
+      });
+      if (res.data && res.data.access_token) {
+        return res.data.access_token;
+      }
+      throw new Error('Page access token not returned by Meta API.');
     });
-    if (res.data && res.data.access_token) {
-      return res.data.access_token;
-    }
-    throw new Error('Page access token not returned by Meta API.');
   } catch (error: any) {
     console.error(`❌ Failed to retrieve Page Access Token dynamically for Page ${fbId}:`, error.message);
     // If we fail, return the original user token as a fallback
@@ -207,12 +241,13 @@ export const postToFacebookPage = async (imageUrl: string, message: string) => {
     const { token, igId, fbId } = await getMetaCredentials();
     checkMetaEnv('facebook', token, igId, fbId);
     checkRateLimit();
-    const pageToken = await getPageAccessToken(token, fbId);
-    const client = await getMetaClient();
-    const res = await client.post(`/${fbId}/photos`, {
-      url: imageUrl, caption: message, access_token: pageToken
+    return await executeMetaRequest(async (client) => {
+      const pageToken = await getPageAccessToken(token, fbId);
+      const res = await client.post(`/${fbId}/photos`, {
+        url: imageUrl, caption: message, access_token: pageToken
+      });
+      return res.data;
     });
-    return res.data;
   } catch (error: any) {
     console.error('Facebook Post Error:', error.message);
     return handleAxiosError(error, 'Facebook Post Error');
@@ -227,12 +262,13 @@ export const postVideoToFacebookPage = async (videoUrl: string, message: string)
     const { token, igId, fbId } = await getMetaCredentials();
     checkMetaEnv('facebook', token, igId, fbId);
     checkRateLimit();
-    const pageToken = await getPageAccessToken(token, fbId);
-    const client = await getMetaClient();
-    const res = await client.post(`/${fbId}/videos`, {
-      file_url: videoUrl, description: message, access_token: pageToken
+    return await executeMetaRequest(async (client) => {
+      const pageToken = await getPageAccessToken(token, fbId);
+      const res = await client.post(`/${fbId}/videos`, {
+        file_url: videoUrl, description: message, access_token: pageToken
+      });
+      return res.data;
     });
-    return res.data;
   } catch (error: any) {
     console.error('Facebook Video Error:', error.message);
     return handleAxiosError(error, 'Facebook Video Error');
@@ -247,26 +283,27 @@ export const getMediaInsights = async (mediaId: string) => {
     const { token, igId, fbId } = await getMetaCredentials();
     checkMetaEnv('instagram', token, igId, fbId);
     checkRateLimit();
-    const client = await getMetaClient();
-    const basicRes = await client.get(`/${mediaId}`, {
-      params: { fields: 'like_count,comments_count,media_url', access_token: token }
-    });
-    
-    const insightRes = await client.get(`/${mediaId}/insights`, {
-      params: { metric: 'reach,impressions,saved,video_views', access_token: token }
-    });
+    return await executeMetaRequest(async (client) => {
+      const basicRes = await client.get(`/${mediaId}`, {
+        params: { fields: 'like_count,comments_count,media_url', access_token: token }
+      });
+      
+      const insightRes = await client.get(`/${mediaId}/insights`, {
+        params: { metric: 'reach,impressions,saved,video_views', access_token: token }
+      });
 
-    const insights: any = {
-      likes: basicRes.data.like_count || 0,
-      comments: basicRes.data.comments_count || 0,
-      media_url: basicRes.data.media_url
-    };
+      const insights: any = {
+        likes: basicRes.data.like_count || 0,
+        comments: basicRes.data.comments_count || 0,
+        media_url: basicRes.data.media_url
+      };
 
-    insightRes.data.data.forEach((item: any) => {
-      insights[item.name] = item.values[0].value;
+      insightRes.data.data.forEach((item: any) => {
+        insights[item.name] = item.values[0].value;
+      });
+
+      return insights;
     });
-
-    return insights;
   } catch (error: any) {
     return { reach: 0, impressions: 0, video_views: 0, saved: 0, likes: 0, comments: 0 };
   }
@@ -298,10 +335,9 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
     const maskedProxy = proxyUrl ? proxyUrl.replace(/:([^:@\n\s]+)@/, ':***@') : 'None (Direct Connection)';
     log(`📡 [Meta Audit] Proxy URL configured: ${maskedProxy}`);
 
-    const client = await getMetaClient();
     // 1. Audit /me (Check token validity)
     try {
-      const meRes = await client.get('/me', { params: { access_token: token } });
+      const meRes = await executeMetaRequest(c => c.get('/me', { params: { access_token: token } }));
       log(`✅ [Meta Audit] Token Owner Name: ${meRes.data.name}, ID: ${meRes.data.id}`);
     } catch (err: any) {
       log(`❌ [Meta Audit] Token Owner Audit: Token is invalid, expired, or revoked! ${err.message}`, true);
@@ -313,7 +349,7 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
 
     // 2. Audit /me/permissions (Check granted scopes)
     try {
-      const permRes = await client.get('/me/permissions', { params: { access_token: token } });
+      const permRes = await executeMetaRequest(c => c.get('/me/permissions', { params: { access_token: token } }));
       const permData = permRes.data.data || [];
       const granted = permData
         .filter((p: any) => p.status === 'granted')
@@ -340,9 +376,9 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
     // 3. Audit Facebook Page ID
     if (fbId) {
       try {
-        const pageRes = await client.get(`/${fbId}`, {
+        const pageRes = await executeMetaRequest(c => c.get(`/${fbId}`, {
           params: { fields: 'name,instagram_business_account', access_token: token }
-        });
+        }));
         log(`✅ [Meta Audit] Facebook Page: "${pageRes.data.name}" (ID: ${fbId})`);
         if (pageRes.data.instagram_business_account) {
           const linkedId = pageRes.data.instagram_business_account.id;
@@ -366,9 +402,9 @@ export const diagnoseMetaConnection = async (logger?: (msg: string) => void) => 
     // 4. Audit Instagram Business Account
     if (igId) {
       try {
-        const igRes = await client.get(`/${igId}`, {
+        const igRes = await executeMetaRequest(c => c.get(`/${igId}`, {
           params: { fields: 'username,name', access_token: token }
-        });
+        }));
         log(`✅ [Meta Audit] Instagram Professional Profile: Name: "${igRes.data.name}", Username: @${igRes.data.username} (ID: ${igId})`);
       } catch (err: any) {
         log(`❌ [Meta Audit] Instagram Account Audit: Failed to query Account ID ${igId}! ${err.message}`, true);
