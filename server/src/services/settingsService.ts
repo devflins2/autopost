@@ -193,10 +193,15 @@ export const autoConfigureProxy = async (logger?: (msg: string) => void): Promis
     const BATCH = 10;
     let found: string | null = null;
 
+    const timeoutPromise = (ms: number) => new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
+
     for (let i = 0; i < proxies.length; i += BATCH) {
       const batch = proxies.slice(i, i + BATCH);
       const results = await Promise.all(
-        batch.map((p: any) => testProxy(p.ip, String(p.port), (p.protocols || [])[0] || 'http'))
+        batch.map((p: any) => Promise.race([
+          testProxy(p.ip, String(p.port), (p.protocols || [])[0] || 'http').catch(() => null),
+          timeoutPromise(8000)
+        ]))
       );
       const working = results.find(r => r !== null);
       if (working) {
