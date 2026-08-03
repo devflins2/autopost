@@ -12,27 +12,33 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     // Fetch live insights for the most recent 5 posts (with a strict 1-hour cooldown)
     const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
     
-    const postsWithInsights = await Promise.all(recentPosts.slice(0, 5).map(async (post) => {
-      // Only fetch if we have an ID AND (no insights fetched yet OR last fetch was more than 1 hour ago)
+    // Trigger background updates for stale insights without blocking the HTTP response
+    recentPosts.slice(0, 5).forEach((post) => {
+      const mediaId = post.igMediaId;
       const lastFetch = post.lastInsightsFetch || new Date(0);
       const needsUpdate = lastFetch < oneHourAgo;
 
-      if (post.igMediaId && needsUpdate) {
-        try {
-          console.log(`📊 Refreshing insights for post: ${post.igMediaId}`);
-          const liveInsights = await getMediaInsights(post.igMediaId);
-          post.insights = liveInsights;
-          post.lastInsightsFetch = new Date();
-          await post.save();
-        } catch (err: any) {
-          console.error(`❌ Failed to fetch insights for ${post.igMediaId}. Starting 1-hour cooldown.`);
-          // Save the timestamp even on failure to avoid infinite retry loops!
-          post.lastInsightsFetch = new Date();
-          await post.save();
-        }
+      if (mediaId && needsUpdate) {
+        // Fire-and-forget background task
+        (async () => {
+          try {
+            console.log(`📊 [Background] Refreshing insights for post: ${mediaId}`);
+            // Set timestamp immediately to prevent concurrent triggers
+            post.lastInsightsFetch = new Date();
+            await post.save();
+
+            const liveInsights = await getMediaInsights(mediaId);
+            post.insights = liveInsights;
+            await post.save();
+            console.log(`✅ [Background] Insights refreshed for post: ${mediaId}`);
+          } catch (err: any) {
+            console.error(`❌ Failed to fetch insights for ${mediaId}:`, err.message);
+          }
+        })();
       }
-      return post;
-    }));
+    });
+
+    const postsWithInsights = recentPosts;
 
     // Calculate totals from DB
     const allPosts = await Post.find({ status: 'posted' });

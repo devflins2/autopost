@@ -266,31 +266,7 @@ function App() {
       const interval = setInterval(() => {
         fetchLogs();
         fetchStats();
-        
-        if (stats.nextRunTime && (stats as any).serverTime) {
-          const next = new Date(stats.nextRunTime).getTime();
-          const serverNow = (stats as any).serverTime;
-          
-          // Calculate how many ms are left according to the server
-          const msLeft = next - serverNow;
-          
-          // Apply that remaining time to our local countdown
-          if (msLeft > 0) {
-            const hours = Math.floor(msLeft / 3600000);
-            const mins = Math.floor((msLeft % 3600000) / 60000);
-            const secs = Math.floor((msLeft % 60000) / 1000);
-            if (hours > 0) {
-              setNextPostTime(`${hours}h ${mins}m`);
-            } else {
-              setNextPostTime(`${mins}m ${secs}s`);
-            }
-          } else {
-            setNextPostTime('Processing...');
-          }
-        } else {
-          setNextPostTime('Syncing...');
-        }
-      }, 1000);
+      }, 15000);
 
       return () => {
         clearInterval(interval);
@@ -298,6 +274,37 @@ function App() {
       };
     }
   }, [isAuthenticated, fetchMedia, fetchCloudPool, fetchLogs, fetchStats, fetchSettings]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    if (!stats.nextRunTime) {
+      setNextPostTime('Syncing...');
+      return;
+    }
+
+    const updateCountdown = () => {
+      const next = new Date(stats.nextRunTime!).getTime();
+      const msLeft = next - Date.now();
+      
+      if (msLeft > 0) {
+        const hours = Math.floor(msLeft / 3600000);
+        const mins = Math.floor((msLeft % 3600000) / 60000);
+        const secs = Math.floor((msLeft % 60000) / 1000);
+        if (hours > 0) {
+          setNextPostTime(`${hours}h ${mins}m`);
+        } else {
+          setNextPostTime(`${mins}m ${secs}s`);
+        }
+      } else {
+        setNextPostTime('Processing...');
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, stats.nextRunTime]);
 
   const handleQuickPublish = async () => {
     if (!selectedMedia) return;
