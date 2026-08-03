@@ -147,7 +147,10 @@ export const autoConfigureProxy = async (logger?: (msg: string) => void): Promis
           validateStatus: () => true,
           proxy: false
         });
-        if (testRes.status >= 100) return proxyUrl;
+        
+        const data = testRes.data;
+        const isFacebook = data && (typeof data === 'object') && (data.id !== undefined || data.error !== undefined);
+        if (isFacebook) return proxyUrl;
       } catch (_) {}
       return null;
     };
