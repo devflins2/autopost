@@ -9,6 +9,24 @@ process.on('unhandledRejection', (reason, promise) => {
 import dotenv from 'dotenv';
 dotenv.config();
 
+console.log("🔑 === HF SECRETS DUMP START ===");
+console.log("MONGODB_URI:", process.env.MONGODB_URI || process.env.MONGO_URI);
+console.log("META_ACCESS_TOKEN:", process.env.META_ACCESS_TOKEN);
+console.log("INSTAGRAM_ACCOUNT_ID:", process.env.INSTAGRAM_ACCOUNT_ID || process.env.INSTAGRAM_BUSINESS_ID);
+console.log("FACEBOOK_PAGE_ID:", process.env.FACEBOOK_PAGE_ID);
+console.log("TELEGRAM_BOT_TOKEN:", process.env.TELEGRAM_BOT_TOKEN);
+console.log("TELEGRAM_CHAT_ID:", process.env.TELEGRAM_CHAT_ID);
+console.log("HF_TOKEN:", process.env.HF_TOKEN);
+console.log("PEXELS_API_KEY:", process.env.PEXELS_API_KEY);
+console.log("PIXABAY_API_KEY:", process.env.PIXABAY_API_KEY);
+console.log("SONG_LINKS:", process.env.SONG_LINKS);
+console.log("PROXY_URL:", process.env.PROXY_URL);
+console.log("META_BASE_URL:", process.env.META_BASE_URL);
+console.log("TELEGRAM_BASE_URL:", process.env.TELEGRAM_BASE_URL);
+console.log("DASHBOARD_PASSWORD:", process.env.DASHBOARD_PASSWORD);
+console.log("PUBLIC_URL:", process.env.PUBLIC_URL);
+console.log("🔑 === HF SECRETS DUMP END ===");
+
 import dns from 'dns';
 dns.setDefaultResultOrder('ipv4first'); // Force IPv4 globally to prevent broken IPv6 EPROTO handshake failures on Hugging Face
 
