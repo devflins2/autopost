@@ -98,7 +98,9 @@ const handleAxiosError = (error: any, defaultMessage: string) => {
 const getMetaClient = async () => {
   const metaBaseUrl = await getSetting('metaBaseUrl');
   const proxyUrl = await getSetting('proxyUrl');
-  const agent = getProxyAgent(proxyUrl);
+  // Only route through the configured proxy if we are connecting directly to graph.facebook.com.
+  // Custom reverse proxies (like Cloudflare Workers) should be connected to directly to avoid Cloudflare blocking.
+  const agent = metaBaseUrl.includes('graph.facebook.com') ? getProxyAgent(proxyUrl) : getProxyAgent('');
 
   return axios.create({
     baseURL: `${metaBaseUrl}/${API_VERSION}`,

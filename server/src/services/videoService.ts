@@ -9,26 +9,13 @@ import { getSetting } from './settingsService';
 
 
 const getTempDir = () => {
-  const hfPersistentPath = '/data/temp';
   const localPath = path.join(process.cwd(), 'temp');
-  
-  try {
-    if (fs.existsSync('/data')) {
-      if (!fs.existsSync(hfPersistentPath)) {
-        fs.mkdirSync(hfPersistentPath, { recursive: true });
-      }
-      return hfPersistentPath;
-    }
-  } catch (err) {
-    console.error('⚠️ Failed to create persistent temp directory, falling back to local:', err);
-  }
-  
   try {
     if (!fs.existsSync(localPath)) {
       fs.mkdirSync(localPath, { recursive: true });
     }
   } catch (err) {
-    console.error('❌ Failed to create local temp directory:', err);
+    console.error('❌ Failed to create temp directory:', err);
   }
   return localPath;
 };
@@ -83,7 +70,7 @@ const downloadFileStreamed = async (
       httpsAgent: agent,
       proxy: false,
       headers: { 
-        'User-Agent': 'FloraBot/1.0 (https://huggingface.co/spaces/floraa18/floraa; bot)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': '*/*'
       }
     });
@@ -459,27 +446,42 @@ export const processVideo = async (
   }
 };
 
-// ─── IMAGEKIT UPLOAD ──────────────────────────────────────────────────────────
+// ─── PUBLIC HOST UPLOAD ───────────────────────────────────────────────────────
+const uploadToCatbox = async (filePath: string): Promise<string> => {
+  const form = new FormData();
+  form.append('reqtype', 'fileupload');
+  form.append('fileToUpload', fs.createReadStream(filePath));
+
+  const response = await axios.post('https://catbox.moe/user/api.php', form, {
+    headers: form.getHeaders(),
+    timeout: 90000
+  });
+  return response.data.trim();
+};
+
 /**
- * Uploads the processed video to ImageKit.
+ * Uploads the processed video to a public host (Catbox, falling back to local static server in production).
  */
 export const uploadToPublicHost = async (filePath: string): Promise<{ url: string, fileName: string } | null> => {
   try {
-    console.log('🚀 Using HF Local Storage (Static Cache)...');
-    const fileName = path.basename(filePath);
-    
-    // In production on HF, we use the PUBLIC_URL
-    const host = (process.env.PUBLIC_URL || 'http://localhost:7860').trim();
-    const url = `${host}/temp/${fileName}`;
-
-    console.log(`✅ Media is now live at: ${url}`);
-    
-    // We DO NOT delete the file here because Meta needs to fetch it via the URL
-    return { url, fileName: fileName }; 
+    console.log('🚀 Uploading to Catbox for high-speed Meta CDN delivery...');
+    const catboxUrl = await uploadToCatbox(filePath);
+    console.log(`✅ Media successfully uploaded to Catbox: ${catboxUrl}`);
+    return { url: catboxUrl, fileName: path.basename(filePath) };
 
   } catch (err: any) {
-    console.error('❌ Local storage error:', err.message);
-    return null;
+    console.warn('⚠️ Catbox upload failed, falling back to local static hosting:', err.message);
+    try {
+      const fileName = path.basename(filePath);
+      const host = (process.env.PUBLIC_URL || 'http://localhost:5000').trim();
+      const url = `${host}/temp/${fileName}`;
+      
+      console.log(`✅ Media is now live at fallback local URL: ${url}`);
+      return { url, fileName: fileName }; 
+    } catch (fallbackErr: any) {
+      console.error('❌ Local fallback hosting failed:', fallbackErr.message);
+      return null;
+    }
   }
 };
 

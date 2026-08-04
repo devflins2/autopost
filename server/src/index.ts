@@ -9,26 +9,22 @@ process.on('unhandledRejection', (reason, promise) => {
 import dotenv from 'dotenv';
 dotenv.config();
 
-console.log("🔑 === HF SECRETS DUMP START ===");
-console.log("MONGODB_URI:", process.env.MONGODB_URI || process.env.MONGO_URI);
-console.log("META_ACCESS_TOKEN:", process.env.META_ACCESS_TOKEN);
-console.log("INSTAGRAM_ACCOUNT_ID:", process.env.INSTAGRAM_ACCOUNT_ID || process.env.INSTAGRAM_BUSINESS_ID);
-console.log("FACEBOOK_PAGE_ID:", process.env.FACEBOOK_PAGE_ID);
-console.log("TELEGRAM_BOT_TOKEN:", process.env.TELEGRAM_BOT_TOKEN);
-console.log("TELEGRAM_CHAT_ID:", process.env.TELEGRAM_CHAT_ID);
-console.log("HF_TOKEN:", process.env.HF_TOKEN);
-console.log("PEXELS_API_KEY:", process.env.PEXELS_API_KEY);
-console.log("PIXABAY_API_KEY:", process.env.PIXABAY_API_KEY);
-console.log("SONG_LINKS:", process.env.SONG_LINKS);
-console.log("PROXY_URL:", process.env.PROXY_URL);
-console.log("META_BASE_URL:", process.env.META_BASE_URL);
-console.log("TELEGRAM_BASE_URL:", process.env.TELEGRAM_BASE_URL);
-console.log("DASHBOARD_PASSWORD:", process.env.DASHBOARD_PASSWORD);
-console.log("PUBLIC_URL:", process.env.PUBLIC_URL);
-console.log("🔑 === HF SECRETS DUMP END ===");
+console.log("🔑 === CONFIGURATION STATUS ===");
+console.log("MONGODB_URI:", (process.env.MONGODB_URI || process.env.MONGO_URI) ? "Configured ✅" : "Missing ❌");
+console.log("META_ACCESS_TOKEN:", process.env.META_ACCESS_TOKEN ? "Configured ✅" : "Missing ❌");
+console.log("INSTAGRAM_ACCOUNT_ID:", (process.env.INSTAGRAM_ACCOUNT_ID || process.env.INSTAGRAM_BUSINESS_ID) ? "Configured ✅" : "Missing ❌");
+console.log("FACEBOOK_PAGE_ID:", process.env.FACEBOOK_PAGE_ID ? "Configured ✅" : "Missing ❌");
+console.log("TELEGRAM_BOT_TOKEN:", process.env.TELEGRAM_BOT_TOKEN ? "Configured ✅" : "Missing ❌");
+console.log("TELEGRAM_CHAT_ID:", process.env.TELEGRAM_CHAT_ID ? "Configured ✅" : "Missing ❌");
+console.log("PEXELS_API_KEY:", process.env.PEXELS_API_KEY ? "Configured ✅" : "Missing ❌");
+console.log("PIXABAY_API_KEY:", process.env.PIXABAY_API_KEY ? "Configured ✅" : "Missing ❌");
+console.log("PROXY_URL:", process.env.PROXY_URL ? "Configured ✅" : "Not configured");
+console.log("META_BASE_URL:", process.env.META_BASE_URL || "Default (https://graph.facebook.com)");
+console.log("PUBLIC_URL:", process.env.PUBLIC_URL || "Not configured");
+console.log("🔑 ==========================");
 
 import dns from 'dns';
-dns.setDefaultResultOrder('ipv4first'); // Force IPv4 globally to prevent broken IPv6 EPROTO handshake failures on Hugging Face
+dns.setDefaultResultOrder('ipv4first'); // Force IPv4 globally to prevent broken IPv6 EPROTO handshake failures
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -46,17 +42,7 @@ import { initScheduler } from './services/schedulerService';
 import { cleanupOldTempFiles, TEMP_DIR } from './services/videoService';
 
 const app = express();
-const PORT = Number(process.env.HF_SPACE === 'true' ? 7860 : (process.env.PORT || 5000));
-
-// Auto-detect HF Space URL if running on Hugging Face
-if (process.env.HF_SPACE === 'true') {
-  const spaceId = process.env.SPACE_ID;
-  if (spaceId && (!process.env.PUBLIC_URL || process.env.PUBLIC_URL.includes('render.com'))) {
-    const [user, name] = spaceId.split('/');
-    process.env.PUBLIC_URL = `https://${user.toLowerCase()}-${name.toLowerCase().replace(/_/g, '-')}.hf.space`;
-    console.log(`🌍 Auto-detected HF Public URL: ${process.env.PUBLIC_URL}`);
-  }
-}
+const PORT = Number(process.env.PORT || 5000);
 
 // Startup: clean stale temp files from previous runs
 cleanupOldTempFiles();
@@ -130,10 +116,10 @@ mongoose.connect(MONGODB_URI)
   });
 
 // --- UNIFIED DEPLOYMENT LOGIC (Serve Frontend) ---
-const isProduction = process.env.NODE_ENV === 'production' || process.env.HF_SPACE === 'true';
+const isProduction = process.env.NODE_ENV === 'production';
 
 if (isProduction) {
-  // Hugging Face ya Production mein client/dist ko serve karein
+  // Serve frontend files in production
   const clientPath = path.join(process.cwd(), '../client/dist');
   app.use(express.static(clientPath));
 

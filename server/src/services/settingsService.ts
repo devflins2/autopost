@@ -35,6 +35,20 @@ export const loadSettings = async (): Promise<ISettings> => {
   let settings = await Settings.findOne({ key: 'global' });
   if (!settings) {
     settings = await Settings.create({ key: 'global' });
+  } else {
+    // If the database contains the hardcoded defaults, clean them up to allow fallback to process.env
+    let updated = false;
+    if (settings.metaBaseUrl === 'https://graph.facebook.com') {
+      settings.metaBaseUrl = '';
+      updated = true;
+    }
+    if (settings.telegramBaseUrl === 'https://api.telegram.org') {
+      settings.telegramBaseUrl = '';
+      updated = true;
+    }
+    if (updated) {
+      await settings.save();
+    }
   }
   
   cachedSettings = settings;

@@ -28,8 +28,8 @@ const SettingsSchema: Schema = new Schema({
   pixabayApiKey: { type: String, default: '' },
   songLinks: { type: String, default: '' },
   proxyUrl: { type: String, default: '' },
-  metaBaseUrl: { type: String, default: 'https://graph.facebook.com' },
-  telegramBaseUrl: { type: String, default: 'https://api.telegram.org' }
+  metaBaseUrl: { type: String, default: '' },
+  telegramBaseUrl: { type: String, default: '' }
 }, { timestamps: true });
 
 export default mongoose.model<ISettings>('Settings', SettingsSchema);

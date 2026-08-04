@@ -4,11 +4,11 @@ dist/
 build/
 .cache/
 
-# Environment Variables (Pushed to private space)
-# .env is now allowed
-
-
-
+# Environment Variables
+.env
+.env.*
+server/.env
+server/.env.*
 # Local temp files
 temp/
 *.log
