@@ -1,22 +1,16 @@
 services:
-  # --- BACKEND (SERVER) ---
+  # --- UNIFIED AUTOPOST APP (SERVER + CLIENT) ---
   - type: web
     name: flora-engine
     env: docker
-    dockerContext: ./server
-    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /api/stats/overview
     envVars:
       - key: PORT
         value: 5000
       - key: MONGO_URI
-        sync: false
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
         sync: false
       - key: META_ACCESS_TOKEN
         sync: false
@@ -32,17 +26,15 @@ services:
         sync: false
       - key: PIXABAY_API_KEY
         sync: false
+      - key: SONG_LINKS
+        sync: false
+      - key: PROXY_URL
+        sync: false
+      - key: META_BASE_URL
+        sync: false
       - key: PUBLIC_URL
-        value: https://flora-engine.onrender.com
+        sync: false
+      - key: DASHBOARD_PASSWORD
+        sync: false
       - key: NODE_ENV
         value: production
-
-  # --- FRONTEND (CLIENT) ---
-  - type: static
-    name: flora-dashboard
-    env: static
-    buildCommand: npm install && npm run build
-    publishPath: ./client/dist
-    envVars:
-      - key: VITE_API_URL
-        value: https://flora-engine.onrender.com/api

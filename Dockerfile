@@ -48,13 +48,9 @@ RUN mkdir -p temp && chmod 777 temp
 
 # Environment variables
 ENV NODE_ENV=production
-ENV PORT=7860
-ENV HF_SPACE=true
+ENV PORT=5000
 ENV TZ=Asia/Kolkata
-EXPOSE 7860
-
-# Port for Hugging Face
-EXPOSE 7860
+EXPOSE 5000
 
 # Start the server from the server directory
 CMD ["node", "dist/index.js"]
