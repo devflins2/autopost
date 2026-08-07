@@ -331,6 +331,26 @@ function App() {
     }
   };
 
+  const handleGlobalRefresh = () => {
+    if (activeTab === 'dashboard') {
+      fetchStats();
+      fetchLogs();
+    } else if (activeTab === 'cache') {
+      fetchLocalPool();
+    } else if (activeTab === 'cloud') {
+      fetchCloudPool();
+    } else if (activeTab === 'media') {
+      fetchMedia(query);
+    } else if (activeTab === 'analytics') {
+      fetchStats();
+      fetchHistory();
+    } else if (activeTab === 'logs') {
+      fetchLogs();
+    } else if (activeTab === 'settings') {
+      fetchSettings();
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="h-screen bg-[#030712] flex items-center justify-center p-6 font-sans">
@@ -415,7 +435,7 @@ function App() {
             />
           </div>
           <div className="flex items-center gap-6 ml-6">
-            <button onClick={fetchStats} className="p-2.5 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/5">
+            <button onClick={handleGlobalRefresh} className="p-2.5 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/5">
                <RefreshCw size={18} className="text-primary-400" />
             </button>
             <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center font-bold">F</div>
@@ -551,7 +571,17 @@ function App() {
 
           {activeTab === 'media' && (
             <div className="space-y-8">
-              <h2 className="text-3xl font-black text-white">Discovery Hub</h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-black text-white">Discovery Hub</h2>
+                <button 
+                  onClick={() => fetchMedia(query)} 
+                  disabled={loading}
+                  className="px-6 py-3 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-primary-600/20"
+                >
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                  Refresh
+                </button>
+              </div>
               <div className="media-grid">
                 {images.map((img) => (
                   <div key={img.id} onClick={() => setSelectedMedia(img)} className="group aspect-[4/5] rounded-3xl overflow-hidden border border-white/5 hover:border-primary-500 transition-all cursor-pointer">
