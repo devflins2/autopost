@@ -332,7 +332,7 @@ export const generateReelFromImage = async (
           '-map 0:v:0',
           '-map 1:a:0',
           '-shortest',          // cuts at whichever ends first (image or audio)
-          '-preset medium',
+          '-preset ultrafast',
           '-profile:v main',
           '-level 4.0',
           '-pix_fmt yuv420p',
@@ -343,7 +343,7 @@ export const generateReelFromImage = async (
           '-maxrate 5M',        // Strict max bitrate for IG
           '-bufsize 10M',
           '-movflags +faststart',
-          '-threads 2',
+          '-threads 1',
           '-r 30'
         ])
         .on('start', () => console.log('🎬 [ImageReel] FFmpeg started.'))
@@ -414,7 +414,7 @@ export const processVideo = async (
             ? ['-map 0:v:0', '-map 1:a:0', '-shortest']
             : ['-map 0:v:0', '-map 0:a:0?']
           ),
-          '-preset medium',
+          '-preset ultrafast',
           '-profile:v main',
           '-level 4.0',
           '-pix_fmt yuv420p',
@@ -425,7 +425,7 @@ export const processVideo = async (
           '-maxrate 5M',        // Strict max bitrate for IG
           '-bufsize 10M',
           '-movflags +faststart',
-          '-threads 2',
+          '-threads 1',
           '-r 30'
         ])
         .on('start', () => console.log('🎬 [VideoReel] FFmpeg started.'))

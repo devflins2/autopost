@@ -214,11 +214,8 @@ export const initScheduler = () => {
 
   console.log(`\n${'═'.repeat(40)}`);
   console.log(`📡 Flora is in WATCH MODE.`);
-  console.log(`🚀 Performing initial autonomous check right now...`);
+  console.log(`⏰ Scheduled checks will run every hour.`);
   console.log(`${'═'.repeat(40)}\n`);
-
-  // Run immediately on startup (will verify if 8 hours have passed)
-  runAutoPilot(false).catch(err => console.error('Initial Auto-Pilot check failed:', err));
 
   // Every Minute: Fire manual scheduled posts
   cron.schedule('* * * * *', async () => {
