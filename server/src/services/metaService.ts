@@ -152,6 +152,44 @@ const executeMetaRequest = async <T>(
 };
 
 /**
+ * Helper to poll container status until ready (FINISHED) before calling media_publish
+ */
+const waitForMediaContainer = async (
+  client: AxiosInstance,
+  creationId: string,
+  igToken: string,
+  maxAttempts: number = 10,
+  delayMs: number = 4000
+): Promise<void> => {
+  let status = 'IN_PROGRESS';
+  let attempts = 0;
+
+  while (status === 'IN_PROGRESS' && attempts < maxAttempts) {
+    attempts++;
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+    try {
+      const statusRes = await client.get(`/${creationId}`, {
+        params: { fields: 'status_code', access_token: igToken }
+      });
+      status = statusRes.data?.status_code || 'FINISHED';
+      console.log(`📸 Media Container Status [${creationId}] (Attempt ${attempts}):`, status);
+
+      if (status === 'FINISHED') return;
+      if (status === 'ERROR') throw new Error('Meta processing failed. Media format or URL may be unreachable.');
+      if (status === 'EXPIRED') throw new Error('Meta container expired before publishing.');
+    } catch (err: any) {
+      if (err.message?.includes('Meta processing failed')) throw err;
+      // Some single-photo containers don't support status_code field and are ready after a short pause
+      if (attempts >= 2) return;
+    }
+  }
+
+  if (status !== 'FINISHED') {
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+};
+
+/**
  * Post an Image to Instagram
  */
 export const postToInstagramImage = async (imageUrl: string, caption: string) => {
@@ -163,13 +201,34 @@ export const postToInstagramImage = async (imageUrl: string, caption: string) =>
     const igBaseUrl = igToken.startsWith('IG') ? 'https://graph.instagram.com' : undefined;
 
     return await executeMetaRequest(async (client) => {
+      console.log('📸 Creating Instagram Photo Container...');
       const containerRes = await client.post(`/${igId}/media`, {
         image_url: imageUrl, caption, access_token: igToken
       });
+      const creationId = containerRes.data.id;
+
+      // Wait for Meta to fetch and process the image file
+      await waitForMediaContainer(client, creationId, igToken, 8, 4000);
       
-      const publishRes = await client.post(`/${igId}/media_publish`, {
-        creation_id: containerRes.data.id, access_token: igToken
-      });
+      console.log('🚀 Publishing Instagram Photo...');
+      let publishRes: any = null;
+      for (let pAttempt = 1; pAttempt <= 3; pAttempt++) {
+        try {
+          publishRes = await client.post(`/${igId}/media_publish`, {
+            creation_id: creationId, access_token: igToken
+          });
+          break;
+        } catch (pubErr: any) {
+          const errData = pubErr.response?.data?.error;
+          if (errData && (errData.code === 9007 || errData.error_subcode === 2207027) && pAttempt < 3) {
+            console.warn(`⏳ Image container not ready yet (Attempt ${pAttempt}/3). Waiting 5s before retrying publish...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            continue;
+          }
+          throw pubErr;
+        }
+      }
+      if (!publishRes) throw new Error('Instagram Photo Publish timed out or failed to return response');
       return publishRes.data;
     }, igBaseUrl);
   } catch (error: any) {
@@ -190,34 +249,34 @@ export const postToInstagramReel = async (videoUrl: string, caption: string) => 
     const igBaseUrl = igToken.startsWith('IG') ? 'https://graph.instagram.com' : undefined;
 
     return await executeMetaRequest(async (client) => {
+      console.log('📽️ Creating Instagram Reel Container...');
       const containerRes = await client.post(`/${igId}/media`, {
         media_type: 'REELS', video_url: videoUrl, caption, access_token: igToken
       });
       const creationId = containerRes.data.id;
 
-      let status = 'IN_PROGRESS';
-      let attempts = 0;
-      while (status === 'IN_PROGRESS' && attempts < 15) {
-        attempts++;
-        await new Promise(resolve => setTimeout(resolve, 30000));
-        const statusRes = await client.get(`/${creationId}`, {
-          params: { fields: 'status_code', access_token: igToken }
-        });
-        status = statusRes.data.status_code;
-        console.log(`📽️ Reel Status [Attempt ${attempts}]:`, status);
-        
-        if (status === 'FINISHED') break;
-        if (status === 'ERROR') throw new Error(`Meta processing failed. Check your video format or account status.`);
-      }
+      // Wait for Instagram video processing (reels take 10-45 seconds)
+      await waitForMediaContainer(client, creationId, igToken, 20, 8000);
 
-      if (status !== 'FINISHED') {
-        throw new Error('Meta processing timed out (Video might be too large or URL unreachable)');
+      console.log('🚀 Publishing Instagram Reel...');
+      let publishRes: any = null;
+      for (let pAttempt = 1; pAttempt <= 3; pAttempt++) {
+        try {
+          publishRes = await client.post(`/${igId}/media_publish`, {
+            creation_id: creationId, access_token: igToken
+          });
+          break;
+        } catch (pubErr: any) {
+          const errData = pubErr.response?.data?.error;
+          if (errData && (errData.code === 9007 || errData.error_subcode === 2207027) && pAttempt < 3) {
+            console.warn(`⏳ Reel container not ready yet (Attempt ${pAttempt}/3). Waiting 8s before retrying publish...`);
+            await new Promise(resolve => setTimeout(resolve, 8000));
+            continue;
+          }
+          throw pubErr;
+        }
       }
-
-      console.log('🚀 Publishing Reel...');
-      const publishRes = await client.post(`/${igId}/media_publish`, {
-        creation_id: creationId, access_token: igToken
-      });
+      if (!publishRes) throw new Error('Instagram Reel Publish timed out or failed to return response');
       return publishRes.data;
     }, igBaseUrl);
   } catch (error: any) {
