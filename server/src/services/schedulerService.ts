@@ -5,6 +5,7 @@ import { fetchImages, fetchVideos } from './mediaService';
 import { generateReelFromImage, getRandomSong, processVideo, uploadToPublicHost, cleanupOldTempFiles } from './videoService';
 import { generateSmartCaption } from './aiService';
 import { getSeasonalKeywords } from '../utils/seasonalKeywords';
+import { getSetting } from './settingsService';
 import Log from '../models/Log';
 import path from 'path';
 
@@ -127,28 +128,33 @@ export const runAutoPilot = async (isManual: boolean = false) => {
     const videoUrl = uploadRes.url;
     const tempFileName = uploadRes.fileName;
 
-    console.log(`🚀 Posting to Instagram & Facebook...`);
+    const postingPlatform = (await getSetting('postingPlatform' as any)) || 'instagram';
+    console.log(`🚀 Posting to ${postingPlatform.toUpperCase()}...`);
     let igRes: any = null;
     let fbRes: any = null;
     let igError: string | null = null;
     let fbError: string | null = null;
 
-    try {
-      igRes = await withRetry(() => postToInstagramReel(videoUrl, autoCaption), 3, 'Instagram Reel');
-    } catch (err: any) {
-      igError = err.message;
-      console.error('❌ Instagram Reel Posting Failed:', igError);
+    if (postingPlatform === 'instagram' || postingPlatform === 'both') {
+      try {
+        igRes = await withRetry(() => postToInstagramReel(videoUrl, autoCaption), 3, 'Instagram Reel');
+      } catch (err: any) {
+        igError = err.message;
+        console.error('❌ Instagram Reel Posting Failed:', igError);
+      }
     }
 
-    try {
-      fbRes = await withRetry(() => postVideoToFacebookPage(videoUrl, autoCaption), 3, 'Facebook Video');
-    } catch (err: any) {
-      fbError = err.message;
-      console.error('❌ Facebook Video Posting Failed:', fbError);
+    if (postingPlatform === 'facebook' || postingPlatform === 'both') {
+      try {
+        fbRes = await withRetry(() => postVideoToFacebookPage(videoUrl, autoCaption), 3, 'Facebook Video');
+      } catch (err: any) {
+        fbError = err.message;
+        console.error('❌ Facebook Video Posting Failed:', fbError);
+      }
     }
 
     if (!igRes && !fbRes) {
-      throw new Error(`Both Instagram and Facebook publishing failed. IG Error: ${igError}. FB Error: ${fbError}`);
+      throw new Error(`Publishing failed. ${igError ? `IG Error: ${igError}. ` : ''}${fbError ? `FB Error: ${fbError}` : ''}`);
     }
 
     // Create record in DB
@@ -157,7 +163,7 @@ export const runAutoPilot = async (isManual: boolean = false) => {
       description: autoCaption, 
       mediaUrl: videoUrl, 
       mediaType: 'video', 
-      platform: 'both', 
+      platform: postingPlatform, 
       status: 'posted', 
       postedAt: new Date(), 
       igMediaId: igRes?.id || undefined, 
@@ -166,15 +172,16 @@ export const runAutoPilot = async (isManual: boolean = false) => {
     });
 
     nextRunTime = new Date(Date.now() + 8 * 60 * 60 * 1000);
-    await Log.create({ message: `🤖 Scraped, Processed & Posted: ${randomKeyword}`, level: 'info' });
+    await Log.create({ message: `🤖 Scraped, Processed & Posted (${postingPlatform}): ${randomKeyword}`, level: 'info' });
 
     console.log(`
 ${'═'.repeat(50)}
 ✅  POST PUBLISHED & CLEANED UP!
 📌  Keyword  : ${randomKeyword}
+🎯  Platform : ${postingPlatform.toUpperCase()}
 📸  Instagram: ${igRes?.id || 'N/A'}
 📘  Facebook : ${fbRes?.id || 'N/A'}
-🗑️  Storage  : Local HF Cache
+🗑️  Storage  : Local Host Cache
 ${'═'.repeat(50)}
 `);
 
@@ -188,7 +195,8 @@ ${'═'.repeat(50)}
         keyword: randomKeyword, 
         igId: igRes?.id, 
         fbId: fbRes?.id, 
-        mediaUrl: videoUrl 
+        mediaUrl: videoUrl,
+        platform: postingPlatform
       }).catch(tgErr => console.error('Telegram success notification failed:', tgErr.message));
     }).catch(importErr => console.error('Failed to import telegramService for success notification:', importErr.message));
 
@@ -223,14 +231,22 @@ export const initScheduler = () => {
     const pendingPosts = await Post.find({ status: 'scheduled', scheduledAt: { $lte: now } });
     for (const post of pendingPosts) {
       try {
-        if (post.mediaType === 'video') {
-          await withRetry(() => postToInstagramReel(post.mediaUrl, post.description), 3, 'Scheduled IG Reel');
-        } else {
-          await withRetry(() => postToInstagramImage(post.mediaUrl, post.description), 3, 'Scheduled IG Image');
-          await withRetry(() => postToFacebookPage(post.mediaUrl, post.description), 3, 'Scheduled FB Post');
+        if (post.platform === 'instagram' || post.platform === 'both') {
+          if (post.mediaType === 'video') {
+            await withRetry(() => postToInstagramReel(post.mediaUrl, post.description), 3, 'Scheduled IG Reel');
+          } else {
+            await withRetry(() => postToInstagramImage(post.mediaUrl, post.description), 3, 'Scheduled IG Image');
+          }
+        }
+        if (post.platform === 'facebook' || post.platform === 'both') {
+          if (post.mediaType === 'video') {
+            await withRetry(() => postVideoToFacebookPage(post.mediaUrl, post.description), 3, 'Scheduled FB Video');
+          } else {
+            await withRetry(() => postToFacebookPage(post.mediaUrl, post.description), 3, 'Scheduled FB Post');
+          }
         }
         post.status = 'posted'; post.postedAt = new Date(); await post.save();
-        await Log.create({ message: `Auto-posted scheduled post ${post._id}`, level: 'info' });
+        await Log.create({ message: `Auto-posted scheduled post ${post._id} (${post.platform})`, level: 'info' });
       } catch (error: any) {
         post.status = 'failed'; post.error = error.message; await post.save();
         await Log.create({ message: `Auto-post failed: ${error.message}`, level: 'error' });

@@ -24,8 +24,11 @@ router.get('/', async (req, res) => {
     // Prepare response with masked secrets
     const responseData = {
       metaAccessToken: maskSecret(settings.metaAccessToken),
+      instagramAccessToken: maskSecret(settings.instagramAccessToken),
+      facebookAccessToken: maskSecret(settings.facebookAccessToken),
       instagramAccountId: settings.instagramAccountId || '',
       facebookPageId: settings.facebookPageId || '',
+      postingPlatform: settings.postingPlatform || 'instagram',
       telegramBotToken: maskSecret(settings.telegramBotToken),
       telegramChatId: settings.telegramChatId || '',
       hfToken: maskSecret(settings.hfToken),
@@ -51,8 +54,11 @@ router.post('/', async (req, res) => {
     
     const fieldsToProcess = [
       'metaAccessToken',
+      'instagramAccessToken',
+      'facebookAccessToken',
       'instagramAccountId',
       'facebookPageId',
+      'postingPlatform',
       'telegramBotToken',
       'telegramChatId',
       'hfToken',

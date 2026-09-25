@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { postToInstagramReel, postToInstagramImage, postToFacebookPage, postVideoToFacebookPage } from '../services/metaService';
+import { getSetting } from '../services/settingsService';
 import Post from '../models/Post';
 import Log from '../models/Log';
 import { uploadToPublicHost } from '../services/videoService';
@@ -43,11 +44,12 @@ export const publishPost = async (req: Request, res: Response) => {
 };
 
 export const quickPublish = async (req: Request, res: Response) => {
-  const { mediaUrl, mediaType, description, platform } = req.body;
+  const { mediaUrl, mediaType, description, platform: requestedPlatform } = req.body;
+  const targetPlatform = requestedPlatform || (await getSetting('postingPlatform' as any)) || 'instagram';
 
   try {
     let result;
-    if (platform === 'instagram' || platform === 'both') {
+    if (targetPlatform === 'instagram' || targetPlatform === 'both') {
       if (mediaType === 'video') {
         result = await postToInstagramReel(mediaUrl, description);
       } else {
@@ -55,7 +57,7 @@ export const quickPublish = async (req: Request, res: Response) => {
       }
     }
 
-    if (platform === 'facebook' || platform === 'both') {
+    if (targetPlatform === 'facebook' || targetPlatform === 'both') {
       if (mediaType === 'video') {
         await postVideoToFacebookPage(mediaUrl, description);
       } else {
@@ -68,12 +70,12 @@ export const quickPublish = async (req: Request, res: Response) => {
       description,
       mediaUrl,
       mediaType,
-      platform,
+      platform: targetPlatform,
       status: 'posted',
       postedAt: new Date()
     });
 
-    await Log.create({ message: `Manual Quick Post successful to ${platform}`, level: 'info' });
+    await Log.create({ message: `Manual Quick Post successful to ${targetPlatform}`, level: 'info' });
     res.json({ success: true, data: result });
   } catch (error: any) {
     await Log.create({ message: `Manual Quick Post failed: ${error.message}`, level: 'error' });

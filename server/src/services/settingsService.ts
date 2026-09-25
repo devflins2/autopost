@@ -9,8 +9,11 @@ let lastAutoProxyTime = 0;
 
 const mockSettings: any = {
   metaAccessToken: process.env.META_ACCESS_TOKEN || '',
+  instagramAccessToken: process.env.INSTAGRAM_ACCESS_TOKEN || '',
+  facebookAccessToken: process.env.FACEBOOK_ACCESS_TOKEN || '',
   instagramAccountId: process.env.INSTAGRAM_ACCOUNT_ID || '',
   facebookPageId: process.env.FACEBOOK_PAGE_ID || '',
+  postingPlatform: process.env.POSTING_PLATFORM || 'instagram',
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
   telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
   hfToken: process.env.HF_TOKEN || '',
@@ -80,8 +83,11 @@ export const getSetting = async (field: keyof ISettings): Promise<string> => {
   // Fallback to environment variables
   const envMapping: Record<string, string[]> = {
     metaAccessToken: ['META_ACCESS_TOKEN'],
+    instagramAccessToken: ['INSTAGRAM_ACCESS_TOKEN'],
+    facebookAccessToken: ['FACEBOOK_ACCESS_TOKEN'],
     instagramAccountId: ['INSTAGRAM_ACCOUNT_ID', 'INSTAGRAM_BUSINESS_ID'],
     facebookPageId: ['FACEBOOK_PAGE_ID'],
+    postingPlatform: ['POSTING_PLATFORM'],
     telegramBotToken: ['TELEGRAM_BOT_TOKEN'],
     telegramChatId: ['TELEGRAM_CHAT_ID'],
     hfToken: ['HF_TOKEN'],
@@ -102,6 +108,7 @@ export const getSetting = async (field: keyof ISettings): Promise<string> => {
   }
 
   // Hardcoded defaults
+  if (field === 'postingPlatform') return 'instagram';
   if (field === 'metaBaseUrl') return 'https://graph.facebook.com';
   if (field === 'telegramBaseUrl') return 'https://api.telegram.org';
 
@@ -114,8 +121,11 @@ export const getSetting = async (field: keyof ISettings): Promise<string> => {
 export const saveSettings = async (updates: Partial<ISettings>): Promise<ISettings> => {
   const allowedKeys: (keyof ISettings)[] = [
     'metaAccessToken',
+    'instagramAccessToken',
+    'facebookAccessToken',
     'instagramAccountId',
     'facebookPageId',
+    'postingPlatform',
     'telegramBotToken',
     'telegramChatId',
     'hfToken',

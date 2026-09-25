@@ -70,8 +70,11 @@ function App() {
   // Settings states
   const [settings, setSettings] = useState({
     metaAccessToken: '',
+    instagramAccessToken: '',
+    facebookAccessToken: '',
     instagramAccountId: '',
     facebookPageId: '',
+    postingPlatform: 'instagram',
     telegramBotToken: '',
     telegramChatId: '',
     hfToken: '',
@@ -314,7 +317,7 @@ function App() {
         mediaUrl: selectedMedia.url,
         mediaType: selectedMedia.resource_type === 'video' || selectedMedia.url.includes('.mp4') ? 'video' : 'image',
         description: caption,
-        platform: 'both'
+        platform: (settings as any).postingPlatform || 'instagram'
       });
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -669,15 +672,27 @@ function App() {
                         </div>
                         
                         <div className="space-y-4">
-                          <div>
-                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Meta Access Token</label>
-                            <input 
-                              type="password" 
-                              placeholder="EAAC..."
-                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
-                              value={settings.metaAccessToken}
-                              onChange={(e) => setSettings({ ...settings, metaAccessToken: e.target.value })}
-                            />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Instagram Access Token (IG... or EAA...)</label>
+                              <input 
+                                type="password" 
+                                placeholder="IGAA... or EAAC..."
+                                className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                                value={settings.instagramAccessToken || settings.metaAccessToken}
+                                onChange={(e) => setSettings({ ...settings, instagramAccessToken: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Facebook / Meta Token (EAA...)</label>
+                              <input 
+                                type="password" 
+                                placeholder="EAAC..."
+                                className="w-full bg-white/[0.02] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors"
+                                value={settings.facebookAccessToken || settings.metaAccessToken}
+                                onChange={(e) => setSettings({ ...settings, facebookAccessToken: e.target.value, metaAccessToken: e.target.value })}
+                              />
+                            </div>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -701,6 +716,19 @@ function App() {
                                 onChange={(e) => setSettings({ ...settings, facebookPageId: e.target.value })}
                               />
                             </div>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Target Publishing Platform</label>
+                            <select
+                              className="w-full bg-[#030712] border border-white/10 rounded-2xl py-4 px-5 text-sm focus:border-primary-500 outline-none text-gray-200 transition-colors cursor-pointer"
+                              value={settings.postingPlatform || 'instagram'}
+                              onChange={(e) => setSettings({ ...settings, postingPlatform: e.target.value as any })}
+                            >
+                              <option value="instagram">📸 Instagram Only (Reels & Photos)</option>
+                              <option value="facebook">📘 Facebook Only (Videos & Posts)</option>
+                              <option value="both">✨ Both (Instagram + Facebook)</option>
+                            </select>
                           </div>
                         </div>
                       </div>

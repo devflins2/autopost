@@ -91,18 +91,21 @@ export const notifyPostSuccess = async (details: {
   mediaUrl?: string,
   platform?: string
 }) => {
-  const { keyword, igId, fbId, mediaUrl, platform = 'Instagram + Facebook' } = details;
+  const { keyword, igId, fbId, mediaUrl, platform = 'Instagram' } = details;
   
+  let targetInfo = '';
+  if (igId) targetInfo += `\n📸 <b>Insta ID:</b> <code>${escapeHTML(igId)}</code>`;
+  if (fbId) targetInfo += `\n📘 <b>FB ID:</b> <code>${escapeHTML(fbId)}</code>`;
+
   const message = `
 ✅ <b>Flora: Reel Published!</b>
 
 🌿 <b>Topic:</b> ${escapeHTML(keyword)}
-📸 <b>Insta ID:</b> <code>${escapeHTML(igId || 'N/A')}</code>
-📘 <b>FB ID:</b> <code>${escapeHTML(fbId || 'N/A')}</code>
+🎯 <b>Platform:</b> ${escapeHTML(platform.toUpperCase())}${targetInfo}
 🔗 <b>Media:</b> <a href="${mediaUrl}">View File</a>
 🕐 <b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
 
-#Flora #AutoPost #Nature
+#Flora #AutoPost #Instagram
   `.trim();
 
   await sendTelegramNotification(message);
